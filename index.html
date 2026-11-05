@@ -1815,13 +1815,38 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) setPa
 
 
 /* =========================================================
-   ONLINE MULTIPLAYER (room code + peer-to-peer via PeerJS)
+   ONLINE MULTIPLAYER (room code; messages relayed by a public MQTT server over secure WebSocket)
    ========================================================= */
-const NET = { peer: null, role: null, code: null, myId: null, conns: new Map(), players: [], hostConn: null, sendT: 0, name: store.get('nick', ''), size: clamp(store.get('roomSize', 2) | 0, 2, 4), track: 0, countT: null, countAt: 0 };
-function loadPeer() {
-  if (window.Peer) return Promise.resolve();
-  return new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js'; sc.onload = res; sc.onerror = () => rej(new Error('load')); document.head.appendChild(sc); });
+const NET = { mq: null, role: null, code: null, myId: null, players: [], seen: new Map(), hb: null, lastHb: 0, lastHost: 0, sendT: 0, name: store.get('nick', ''), size: clamp(store.get('roomSize', 2) | 0, 2, 4), track: 0, countT: null, countAt: 0, pendingNext: null };
+const BROKERS = window.__BROKERS || ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081'];
+const TOP = code => 'kidcar-lidude1547/v2/' + code;
+const MQTT_LIBS = ['https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js', 'https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js', 'https://cdn.jsdelivr.net/npm/mqtt@5.3.5/dist/mqtt.min.js'];
+async function loadMqtt() {
+  for (const src of MQTT_LIBS) {
+    if (window.mqtt) return;
+    try { await new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = src; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); }); } catch (e) { }
+  }
+  if (!window.mqtt) throw new Error('load');
 }
+function mqConnect(url, opts) {
+  return new Promise((res, rej) => {
+    let done = false, c;
+    try { c = window.mqtt.connect(url, Object.assign({ keepalive: 20, connectTimeout: 6000, reconnectPeriod: 0, protocolVersion: 4 }, opts)); } catch (e) { return rej(e); }
+    const fail = () => { if (done) return; done = true; try { c.end(true); } catch (e) { } rej(new Error('connect')); };
+    const to = setTimeout(fail, 7000);
+    c.on('connect', () => { if (done) return; done = true; clearTimeout(to); if (c.options) c.options.reconnectPeriod = 2000; res(c); });
+    c.on('error', () => { if (!done) { clearTimeout(to); fail(); } });
+  });
+}
+function retainedGet(c, topic, ms) {
+  return new Promise(res => {
+    let done = false;
+    const fin = v => { if (done) return; done = true; c.removeListener('message', h); try { c.unsubscribe(topic); } catch (e) { } res(v); };
+    const h = (t, buf) => { if (t !== topic) return; const str = buf ? buf.toString() : ''; if (!str) return fin(null); try { fin(JSON.parse(str)); } catch (e) { fin(null); } };
+    c.on('message', h); c.subscribe(topic, { qos: 1 }); setTimeout(() => fin(null), ms);
+  });
+}
+function sendHost(m) { if (!NET.mq || !NET.code) return; m.from = NET.myId; try { NET.mq.publish(TOP(NET.code) + '/h', JSON.stringify(m), { qos: m.t === 'st' || m.t === 'hb' ? 0 : 1 }); } catch (e) { } }
 const mySpec = () => [sel.type, sel.color, sel.brand, 7, sel.make];
 function cleanSpec(sp) {
   sp = Array.isArray(sp) ? sp : [];
@@ -1830,10 +1855,17 @@ function cleanSpec(sp) {
 const cleanName = n => (String(n || '').replace(/[<>&"]/g, '').trim().slice(0, 8) || '玩家');
 function netMsg(t) { $('#netMsg').textContent = t || ''; }
 function netReset() {
-  try { if (NET.peer) NET.peer.destroy(); } catch (e) { }
-  NET.peer = null; NET.role = null; NET.code = null; NET.myId = null; NET.conns.clear(); NET.players = []; NET.hostConn = null;
+  clearInterval(NET.hb); NET.hb = null; if (NET.countT) { clearTimeout(NET.countT); NET.countT = null; } NET.countAt = 0;
+  try {
+    if (NET.mq) {
+      if (NET.role === 'host' && NET.code) { netBroadcast({ t: 'closed' }); NET.mq.publish(TOP(NET.code) + '/room', '', { qos: 1, retain: true }); }
+      else if (NET.role === 'guest' && NET.code) sendHost({ t: 'bye' });
+      const c = NET.mq; setTimeout(() => { try { c.end(true); } catch (e) { } }, 400);
+    }
+  } catch (e) { }
+  NET.mq = null; NET.role = null; NET.code = null; NET.myId = null; NET.players = []; NET.seen = new Map(); NET.pendingNext = null;
 }
-function netBroadcast(m) { for (const c of NET.conns.values()) if (c.open) try { c.send(m); } catch (e) { } }
+function netBroadcast(m) { if (!NET.mq || !NET.code) return; try { NET.mq.publish(TOP(NET.code) + '/a', JSON.stringify(m), { qos: m.t === 'w' || m.t === 'hb' ? 0 : 1 }); } catch (e) { } }
 function lobbyUI() {
   const inRoom = !!NET.role && !!NET.code;
   $('#netHome').hidden = inRoom; $('#netLobby').hidden = !inRoom;
@@ -1879,28 +1911,32 @@ async function netHost() {
   if (pwHash('kidcar:' + $('#netPw').value.trim()) !== HOST_PW_HASH) { netMsg('開房密碼不對，請再試一次'); $('#netPw').value = ''; $('#netPw').focus(); Audio.beep(220, .2); return; }
   $('#netPw').value = '';
   saveName(); netMsg('開房間中…');
-  try { await loadPeer(); } catch (e) { return netMsg('連線元件載入失敗，請確認有網路'); }
+  try { await loadMqtt(); } catch (e) { return netMsg('連線元件載入失敗，請確認有網路'); }
   netReset();
-  const code = String(Math.floor(1000 + Math.random() * 9000));
-  const peer = new Peer('kidcar-' + code); NET.peer = peer;
-  peer.on('open', () => {
-    NET.role = 'host'; NET.code = code; NET.myId = 'host';
-    NET.track = sel.track; NET.players = [{ id: 'host', name: NET.name, spec: mySpec(), ready: false }]; netMsg(''); lobbyUI();
-  });
-  peer.on('connection', conn => {
-    conn.on('open', () => {
-      if (NET.players.length >= NET.size || (R && R.net && mode === 'race')) { conn.send({ t: 'full' }); setTimeout(() => conn.close(), 400); return; }
-      NET.conns.set(conn.peer, conn);
-    });
-    conn.on('data', d => hostRecv(conn, d));
-    conn.on('close', () => dropPlayer(conn.peer));
-    conn.on('error', () => dropPlayer(conn.peer));
-  });
-  peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) { } });
-  peer.on('error', e => {
-    if (e.type === 'unavailable-id') { netHost(); return; }
-    netMsg('開房間失敗（' + e.type + '），請再試一次');
-  });
+  let client = null;
+  for (const u of BROKERS) { try { client = await mqConnect(u, { clientId: 'kidcar_h' + Math.random().toString(36).slice(2, 10), clean: false }); break; } catch (e) { } }
+  if (!client) return netMsg('連不到連線伺服器，請確認網路後再試一次');
+  let code = null;
+  for (let i = 0; i < 6 && !code; i++) {
+    const c = String(Math.floor(1000 + Math.random() * 9000)); const r = await retainedGet(client, TOP(c) + '/room', 1200);
+    if (!r || Date.now() - (r.ts || 0) > 30 * 60 * 1000) code = c;
+  }
+  if (!code) { try { client.end(true); } catch (e) { } return netMsg('開房間失敗，請再試一次'); }
+  NET.mq = client; NET.role = 'host'; NET.code = code; NET.myId = 'host'; NET.seen = new Map(); NET.lastHb = Date.now();
+  NET.track = sel.track; NET.players = [{ id: 'host', name: NET.name, spec: mySpec(), ready: false }];
+  client.on('message', (t, buf) => { if (t !== TOP(code) + '/h') return; let d; try { d = JSON.parse(buf.toString()); } catch (e) { return; } hostRecv(d); });
+  client.subscribe(TOP(code) + '/h', { qos: 1 });
+  const mark = () => { if (NET.mq === client && NET.role === 'host') client.publish(TOP(code) + '/room', JSON.stringify({ ts: Date.now(), size: NET.size, host: NET.name }), { qos: 1, retain: true }); };
+  mark(); client.on('connect', () => { mark(); hostLobby(); });
+  NET.hb = setInterval(() => {
+    if (NET.role !== 'host') return;
+    const now = Date.now();
+    if (now - NET.lastHb > 9000) for (const k of NET.seen.keys()) NET.seen.set(k, now); // we were asleep: don't blame the guests
+    NET.lastHb = now; mark(); netBroadcast({ t: 'hb' });
+    const limit = R && R.net && mode === 'race' ? 12000 : 30000;
+    for (const p of NET.players.slice(1)) if (now - (NET.seen.get(p.id) || now) > limit) dropPlayer(p.id);
+  }, 4000);
+  netMsg(''); lobbyUI();
 }
 function hostLobby() {
   netBroadcast({ t: 'lobby', code: NET.code, size: NET.size, track: NET.track, countAt: NET.countAt ? Math.max(0, NET.countAt - performance.now()) : 0, players: NET.players });
@@ -1930,21 +1966,22 @@ function hostCheckStart() {
   } else if (!allIn && NET.countT) { clearTimeout(NET.countT); NET.countT = null; NET.countAt = 0; hostLobby(); }
 }
 function tickCount() { if (!NET.countAt) return; lobbyUI(); Audio.beep(700, .08); setTimeout(tickCount, 1000); }
-function hostRecv(conn, d) {
-  if (!d || typeof d !== 'object') return;
-  if (d.t === 'ready') { const p = NET.players.find(p => p.id === conn.peer); if (p) { p.ready = !!d.v; hostLobby(); } return; }
+function hostRecv(d) {
+  if (!d || typeof d !== 'object' || typeof d.from !== 'string' || NET.role !== 'host') return;
+  const id = d.from.slice(0, 24); NET.seen.set(id, Date.now());
+  if (d.t === 'bye') return dropPlayer(id);
+  if (d.t === 'ready') { const p = NET.players.find(p => p.id === id); if (p) { p.ready = !!d.v; hostLobby(); } return; }
   if (d.t === 'hello') {
-    if (!NET.conns.has(conn.peer)) return;
-    const prev = NET.players.length;
-    NET.players = NET.players.filter(p => p.id !== conn.peer);
-    if (NET.players.length >= NET.size) { conn.send({ t: 'full' }); setTimeout(() => conn.close(), 400); return; }
-    NET.players.push({ id: conn.peer, name: cleanName(d.name), spec: cleanSpec(d.spec), ready: false });
+    const prev = NET.players.length, ex = NET.players.find(p => p.id === id);
+    if (ex) { ex.name = cleanName(d.name); ex.spec = cleanSpec(d.spec); hostLobby(); return; }
+    if (NET.players.length >= NET.size || (R && R.net && mode === 'race')) { netBroadcast({ t: 'full', to: id }); return; }
+    NET.players.push({ id, name: cleanName(d.name), spec: cleanSpec(d.spec), ready: false });
     hostLobby(); netArrived(prev);
-  } else if (d.t === 'st' && Array.isArray(d.x)) applyState(conn.peer, d.x);
+  } else if (d.t === 'st' && Array.isArray(d.x)) applyState(id, d.x);
 }
 function dropPlayer(id) {
-  if (!NET.conns.has(id) && !NET.players.some(p => p.id === id)) return;
-  NET.conns.delete(id); NET.players = NET.players.filter(p => p.id !== id);
+  if (!NET.players.some(p => p.id === id) || id === 'host') return;
+  NET.seen.delete(id); NET.players = NET.players.filter(p => p.id !== id);
   if (R && R.net) { const c = R.cars.find(c => c.remote === id); if (c) { c.gone = true; c.built.group.visible = false; c.s = -1e6; } }
   netBroadcast({ t: 'left', id }); hostLobby();
 }
@@ -1952,24 +1989,40 @@ async function netJoin() {
   saveName();
   const code = $('#netCode').value.replace(/\D/g, '');
   if (code.length !== 4) return netMsg('請輸入 4 位數房號');
-  netMsg('連線中…');
-  try { await loadPeer(); } catch (e) { return netMsg('連線元件載入失敗，請確認有網路'); }
+  netMsg('找房間中…');
+  try { await loadMqtt(); } catch (e) { return netMsg('連線元件載入失敗，請確認有網路'); }
   netReset();
-  const peer = new Peer(); NET.peer = peer;
-  peer.on('open', id => {
-    NET.myId = id;
-    const conn = peer.connect('kidcar-' + code, { reliable: true }); NET.hostConn = conn;
-    const to = setTimeout(() => { if (!conn.open) netMsg('找不到房間 ' + code + '，請確認房號'); }, 9000);
-    conn.on('open', () => { clearTimeout(to); NET.role = 'guest'; NET.code = code; conn.send({ t: 'hello', name: NET.name, spec: mySpec() }); netMsg('已加入房間！'); });
-    conn.on('data', guestRecv);
-    conn.on('close', () => { if (NET.role === 'guest') { netMsg('和房主的連線中斷了'); NET.role = null; NET.code = null; lobbyUI(); if (R && R.net) banner('連線中斷', 2500); } });
+  const gid = 'g' + Math.random().toString(36).slice(2, 10);
+  let found = null, reached = false;
+  for (const u of BROKERS) {
+    let c; try { c = await mqConnect(u, { clientId: 'kidcar_' + gid, clean: true, will: { topic: TOP(code) + '/h', payload: JSON.stringify({ t: 'bye', from: gid }), qos: 1, retain: false } }); } catch (e) { continue; }
+    reached = true;
+    const r = await retainedGet(c, TOP(code) + '/room', 2500);
+    if (r && Date.now() - (r.ts || 0) < 30 * 60 * 1000) { found = c; break; }
+    try { c.end(true); } catch (e) { }
+  }
+  if (!reached) return netMsg('連不到連線伺服器，請確認網路後再試一次');
+  if (!found) return netMsg('找不到房間 ' + code + '。請確認房號，並請房主先開好房間、遊戲畫面保持開著');
+  NET.mq = found; NET.myId = gid; NET.role = 'guest'; NET.code = code; NET.players = []; NET.lastHost = Date.now();
+  found.on('message', (t, buf) => {
+    if (t !== TOP(code) + '/a' || NET.mq !== found) return; let d; try { d = JSON.parse(buf.toString()); } catch (e) { return; }
+    if (d.to && d.to !== NET.myId) return; NET.lastHost = Date.now(); guestRecv(d);
   });
-  peer.on('error', e => netMsg(e.type === 'peer-unavailable' ? '找不到房間 ' + code + '，請確認房號' : '連線失敗（' + e.type + '）'));
+  found.subscribe(TOP(code) + '/a', { qos: 1 });
+  const hello = () => sendHost({ t: 'hello', name: NET.name, spec: mySpec() });
+  hello(); found.on('connect', () => { if (NET.mq === found) hello(); });
+  NET.hb = setInterval(() => {
+    if (NET.role !== 'guest') return;
+    if (!NET.players.some(p => p.id === NET.myId)) hello(); else if (!(R && R.net && mode === 'race')) sendHost({ t: 'hb' });
+    if (Date.now() - NET.lastHost > 30000) netMsg('一直收不到房主的訊息，房主可能離開了…');
+  }, 3000);
+  netMsg('找到房間了！等房主回應…'); lobbyUI();
 }
 function guestRecv(d) {
   if (!d || typeof d !== 'object') return;
-  if (d.t === 'lobby') { const prev = NET.players.length; NET.size = clamp(d.size | 0, 2, 4); NET.track = clamp(d.track | 0, 0, TRACKS.length - 1); NET.players = (d.players || []).slice(0, 4).map(p => ({ id: String(p.id), name: cleanName(p.name), spec: cleanSpec(p.spec), ready: !!p.ready })); const was = NET.countAt; NET.countAt = d.countAt > 0 ? performance.now() + Math.min(4000, d.countAt) : 0; lobbyUI(); netArrived(prev); if (NET.countAt && !was) tickCount(); }
-  else if (d.t === 'full') { netMsg('這個房間已經滿了，或是比賽已經開始'); NET.role = null; NET.code = null; lobbyUI(); }
+  if (d.t === 'lobby') { const prev = NET.players.length; const wasIn = NET.players.some(p => p.id === NET.myId); NET.size = clamp(d.size | 0, 2, 4); NET.track = clamp(d.track | 0, 0, TRACKS.length - 1); NET.players = (d.players || []).slice(0, 4).map(p => ({ id: String(p.id), name: cleanName(p.name), spec: cleanSpec(p.spec), ready: !!p.ready })); const was = NET.countAt; NET.countAt = d.countAt > 0 ? performance.now() + Math.min(4000, d.countAt) : 0; lobbyUI(); netArrived(prev); if (NET.countAt && !was) tickCount(); if (!wasIn && NET.players.some(p => p.id === NET.myId)) netMsg('已加入房間！請按「開始比賽」顯示 READY'); }
+  else if (d.t === 'full') { netReset(); lobbyUI(); netMsg('這個房間已經滿了，或是比賽已經開始'); }
+  else if (d.t === 'closed') { NET.role = null; netReset(); lobbyUI(); netMsg('房主關閉了房間'); if (R && R.net && mode === 'race') banner('房主離開了', 2500); }
   else if (d.t === 'start') {
     const ti = clamp(d.track | 0, 0, TRACKS.length - 1);
     const cfg = { laps: clamp(d.laps | 0, 1, 3), vmax: [150, 250, 350].includes(d.vmax) ? d.vmax : 350, ai: ['easy', 'pro', 'max'].includes(d.ai) ? d.ai : 'pro', aiType: TYPES.some(t => t.id === d.aiType) ? d.aiType : 'gt3', players: (d.players || []).slice(0, 4).map(p => ({ id: String(p.id), name: cleanName(p.name), spec: cleanSpec(p.spec) })) };
@@ -1999,7 +2052,7 @@ const r2 = v => Math.round(v * 100) / 100;
 function netSend() {
   const me = R.me; if (!me) return;
   const x = [r2(me.s), r2(me.d), r2(me.psi || 0), r2(me.v)];
-  if (NET.role === 'guest') { if (NET.hostConn && NET.hostConn.open) try { NET.hostConn.send({ t: 'st', x }); } catch (e) { } }
+  if (NET.role === 'guest') sendHost({ t: 'st', x });
   else if (NET.role === 'host') {
     const p = { host: x };
     for (const c of R.cars) if (c.remote && c.net && !c.gone) p[c.remote] = c.net.x;
@@ -2032,7 +2085,7 @@ $('#netReady').onclick = () => {
   const me = NET.players.find(p => p.id === NET.myId); if (!me) return;
   const v = !me.ready; Audio.beep(v ? 880 : 440, .1);
   if (NET.role === 'host') { me.ready = v; NET.players[0].spec = mySpec(); hostLobby(); }
-  else if (NET.hostConn && NET.hostConn.open) { me.ready = v; lobbyUI(); NET.hostConn.send({ t: 'ready', v }); }
+  else if (NET.role === 'guest') { me.ready = v; lobbyUI(); sendHost({ t: 'ready', v }); }
 };
 $('#netTrack').addEventListener('change', () => { if (NET.role !== 'host') return; hostNext(clamp(+$('#netTrack').value | 0, 0, TRACKS.length - 1)); });
 $('#netClose').onclick = () => { if (!NET.role) netReset(); showOv('net', false); };
