@@ -174,6 +174,15 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
 .np{display:flex;align-items:center;gap:10px;background:var(--panel2);border-radius:14px;padding:8px 12px;font-weight:900}
 .np i{width:22px;height:22px;border-radius:50%;border:2px solid #fff;flex:none}
 .np small{margin-left:auto;color:var(--muted);font-weight:700}
+.nsize{display:flex;gap:8px;margin:-4px 0 14px}.nsize button{flex:1;border-radius:14px;padding:10px;font-weight:900;font-size:17px;background:var(--panel2);border:1px solid var(--line)}.nsize button.sel{background:var(--yellow);color:#111}
+.np.empty{opacity:.45;border:2px dashed var(--line);background:transparent}
+.nbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.nbtns .btn{flex:1;font-size:16px;padding:12px 10px}
+.np .rd{margin-left:auto;font-size:13px;font-weight:900;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.1);color:var(--muted)}
+.np .rd.on{background:#16a34a;color:#fff}
+.np small{margin-left:8px!important}
+#netReady.on{background:linear-gradient(180deg,#ffd84a,#e0a800);color:#111;box-shadow:0 5px 0 #8a6a00}
+.ntrack{text-align:center;font-weight:900;margin:4px 0 12px;background:var(--panel2);border-radius:14px;padding:10px}
+.ncount{font-size:22px;color:var(--yellow);text-align:center;font-weight:900;margin:6px 0}
 .nmsg{min-height:20px;text-align:center;font-weight:700;color:var(--yellow);margin-top:8px}
 #err{position:fixed;inset:0;display:none;z-index:99;align-items:center;justify-content:center;text-align:center;padding:24px;font-size:18px}
 </style>
@@ -289,6 +298,8 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
   <h2 style="text-align:center">👥 連線對戰</h2>
   <div id="netHome">
     <label class="nl">你的名字<input id="netName" maxlength="8" autocomplete="off"></label>
+    <div class="nl">房間人數</div>
+    <div class="nsize" id="netSize"><button data-n="2">2 人</button><button data-n="3">3 人</button><button data-n="4">4 人</button></div>
     <button class="btn go wide" id="netHost">🏠 開房間</button>
     <div class="nor">或是加入朋友的房間</div>
     <div class="nrow"><input id="netCode" inputmode="numeric" maxlength="4" placeholder="房號 4 位數" autocomplete="off"><button class="btn go" id="netJoin">加入</button></div>
@@ -298,14 +309,19 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
     <div class="nhint" id="netHint">把房號告訴朋友，請他按「連線對戰」輸入房號</div>
     <div id="netPlayers"></div>
     <div id="netHostCtl">
-      <label class="nl">賽道<select id="netTrack"></select></label>
-      <div class="nhint">圈數、最高速、對手強度用你在選賽道頁面的設定；空的位子由電腦補滿 9 台。</div>
-      <button class="btn go wide" id="netStart">🏁 開始比賽</button>
+      <label class="nl">賽道（房主選）<select id="netTrack"></select></label>
+      <div class="nhint">圈數、最高速、對手強度用房主的設定；空的位子由電腦補滿 9 台。</div>
     </div>
-    <div class="nhint" id="netWait" hidden>等房主選賽道、按開始…</div>
+    <div class="ntrack" id="netTrackShow" hidden></div>
+    <button class="btn go wide" id="netReady">🏁 開始比賽</button>
+    <div class="nhint" id="netWait">人到齊、而且每個人都按「開始比賽」顯示 READY，比賽就會開始</div>
   </div>
   <div class="nmsg" id="netMsg"></div>
-  <button class="btn wide" id="netClose" style="margin-top:10px">⬅ 離開</button>
+  <div class="nbtns">
+    <button class="btn" id="netHide">⬇ 收起（房間保留）</button>
+    <button class="btn" id="netLeave">🚪 離開房間</button>
+    <button class="btn wide" id="netClose">⬅ 返回</button>
+  </div>
 </div></div>
 <div id="rot"><div class="phone">📱</div><h2>請把手機橫過來</h2><p>橫著拿才能開賽車喔！轉過來就會繼續。</p></div>
 <div id="err">😢 這台裝置沒辦法顯示 3D 畫面（WebGL）。<br>請換用新版 Chrome / Safari / Edge 試試看。</div>
@@ -1715,7 +1731,7 @@ $('#pRestart').onclick = () => startRace(sel.track);
 $('#pTracks').onclick = () => toMenu('tracks');
 $('#pGarage').onclick = () => toMenu('garage');
 $('#rAgain').onclick = () => { if (R && R.net) return openNet(); startRace(sel.track); };
-$('#rNext').onclick = () => { if (R && R.net) { $('#netTrack').value = (sel.track + 1) % TRACKS.length; return openNet(); } startRace((sel.track + 1) % TRACKS.length); };
+$('#rNext').onclick = () => { if (R && R.net) { if (NET.role === 'host') { NET.track = (sel.track + 1) % TRACKS.length; NET.players.forEach(p => p.ready = false); hostLobby(); } return openNet(); } startRace((sel.track + 1) % TRACKS.length); };
 $('#rTracks').onclick = () => toMenu('tracks');
 $('#rGarage').onclick = () => toMenu('garage');
 $('#bCam').onclick = () => { camMode = (camMode + 1) % 3; store.set('cam', camMode); };
@@ -1758,7 +1774,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) setPa
 /* =========================================================
    ONLINE MULTIPLAYER (room code + peer-to-peer via PeerJS)
    ========================================================= */
-const NET = { peer: null, role: null, code: null, myId: null, conns: new Map(), players: [], hostConn: null, sendT: 0, name: store.get('nick', '') };
+const NET = { peer: null, role: null, code: null, myId: null, conns: new Map(), players: [], hostConn: null, sendT: 0, name: store.get('nick', ''), size: clamp(store.get('roomSize', 2) | 0, 2, 4), track: 0, countT: null, countAt: 0 };
 function loadPeer() {
   if (window.Peer) return Promise.resolve();
   return new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js'; sc.onload = res; sc.onerror = () => rej(new Error('load')); document.head.appendChild(sc); });
@@ -1778,16 +1794,37 @@ function netBroadcast(m) { for (const c of NET.conns.values()) if (c.open) try {
 function lobbyUI() {
   const inRoom = !!NET.role && !!NET.code;
   $('#netHome').hidden = inRoom; $('#netLobby').hidden = !inRoom;
+  $('#netHide').hidden = $('#netLeave').hidden = !inRoom; $('#netClose').hidden = inRoom;
+  document.querySelectorAll('#netSize button').forEach(b => b.classList.toggle('sel', +b.dataset.n === NET.size));
+  netBadge();
   if (!inRoom) return;
   $('#netCodeShow').textContent = NET.code;
-  $('#netPlayers').innerHTML = NET.players.map((p, i) => `<div class="np"><i style="background:${cleanSpec(p.spec)[1]}"></i>${cleanName(p.name)}${p.id === NET.myId ? '（你）' : ''}<small>${i === 0 ? '房主' : '玩家 ' + (i + 1)}</small></div>`).join('') +
-    `<div class="nhint">${NET.players.length} / 4 位玩家</div>`;
-  $('#netHostCtl').hidden = NET.role !== 'host'; $('#netWait').hidden = NET.role === 'host';
-  $('#netHint').hidden = NET.role !== 'host';
+  const n = NET.players.length, need = NET.size - n;
+  let html = NET.players.map((p, i) => `<div class="np"><i style="background:${cleanSpec(p.spec)[1]}"></i>${cleanName(p.name)}${p.id === NET.myId ? '（你）' : ''}<span class="rd ${p.ready ? 'on' : ''}">${p.ready ? '✅ READY' : '等待中…'}</span><small>${i === 0 ? '房主' : '玩家 ' + (i + 1)}</small></div>`).join('');
+  for (let i = n; i < NET.size; i++) html += `<div class="np empty"><i style="background:transparent"></i>等待玩家加入…<small>玩家 ${i + 1}</small></div>`;
+  const notReady = NET.players.filter(p => !p.ready).length;
+  const counting = NET.countAt > 0;
+  $('#netPlayers').innerHTML = html + (counting ? `<div class="ncount">全員 READY！${Math.max(1, Math.ceil((NET.countAt - performance.now()) / 1000))} 秒後開始 🏁</div>` :
+    `<div class="nhint">${n} / ${NET.size} 位玩家${need > 0 ? '，還差 ' + need + ' 位' : notReady ? '，到齊了！還有 ' + notReady + ' 位沒按開始' : ''}</div>`);
+  $('#netHostCtl').hidden = NET.role !== 'host'; $('#netHint').hidden = NET.role !== 'host' || need <= 0;
+  $('#netTrackShow').hidden = NET.role === 'host';
+  $('#netTrackShow').textContent = '賽道：第 ' + (NET.track + 1) + ' 站　' + TRACKS[NET.track].zh + '・' + TRACKS[NET.track].ci;
+  if (NET.role === 'host' && $('#netTrack').options.length) $('#netTrack').value = NET.track;
+  const me = NET.players.find(p => p.id === NET.myId), rb = $('#netReady');
+  rb.classList.toggle('on', !!(me && me.ready)); rb.textContent = me && me.ready ? '✅ READY！（再按一次取消）' : '🏁 開始比賽';
+}
+function netBadge() {
+  const b = $('#tNet'); if (!b) return;
+  b.textContent = NET.role && NET.code ? `👥 房間 ${NET.code}（${NET.players.length}/${NET.size}）` : '👥 連線對戰';
+}
+function netArrived(prev) {
+  // someone joined/left while the lobby may be hidden: tell the player, pop the lobby up when the room is full
+  if (NET.players.length > prev) Audio.beep(880, .12);
+  if (NET.players.length >= NET.size && prev < NET.size && mode !== 'race' && mode !== 'podium') { openNet(); Audio.tone(660, .3, 'triangle', .3); setTimeout(() => Audio.tone(990, .4, 'triangle', .3), 160); }
 }
 function openNet() {
   if (!$('#netTrack').options.length) $('#netTrack').innerHTML = TRACKS.map((t, i) => `<option value="${i}">第 ${i + 1} 站　${t.zh}・${t.ci}</option>`).join('');
-  if (!NET.role) $('#netTrack').value = sel.track;
+  $('#netTrack').value = NET.role ? NET.track : sel.track;
   $('#netName').value = NET.name; netMsg(''); lobbyUI();
   if (mode === 'race' || mode === 'podium') toMenu('tracks');
   showOv('result', false); showOv('net', true);
@@ -1801,11 +1838,11 @@ async function netHost() {
   const peer = new Peer('kidcar-' + code); NET.peer = peer;
   peer.on('open', () => {
     NET.role = 'host'; NET.code = code; NET.myId = 'host';
-    NET.players = [{ id: 'host', name: NET.name, spec: mySpec() }]; netMsg(''); lobbyUI();
+    NET.track = sel.track; NET.players = [{ id: 'host', name: NET.name, spec: mySpec(), ready: false }]; netMsg(''); lobbyUI();
   });
   peer.on('connection', conn => {
     conn.on('open', () => {
-      if (NET.players.length >= 4) { conn.send({ t: 'full' }); setTimeout(() => conn.close(), 400); return; }
+      if (NET.players.length >= NET.size || (R && R.net && mode === 'race')) { conn.send({ t: 'full' }); setTimeout(() => conn.close(), 400); return; }
       NET.conns.set(conn.peer, conn);
     });
     conn.on('data', d => hostRecv(conn, d));
@@ -1818,21 +1855,36 @@ async function netHost() {
     netMsg('開房間失敗（' + e.type + '），請再試一次');
   });
 }
+function hostLobby() {
+  netBroadcast({ t: 'lobby', code: NET.code, size: NET.size, track: NET.track, countAt: NET.countAt ? Math.max(0, NET.countAt - performance.now()) : 0, players: NET.players });
+  lobbyUI(); hostCheckStart();
+}
+function hostCheckStart() {
+  const allIn = NET.players.length === NET.size && NET.players.every(p => p.ready);
+  if (allIn && !NET.countT) {
+    NET.countAt = performance.now() + 3000;
+    NET.countT = setTimeout(() => { NET.countT = null; NET.countAt = 0; if (NET.players.length === NET.size && NET.players.every(p => p.ready)) netStart(); else hostLobby(); }, 3000);
+    hostLobby(); tickCount();
+  } else if (!allIn && NET.countT) { clearTimeout(NET.countT); NET.countT = null; NET.countAt = 0; hostLobby(); }
+}
+function tickCount() { if (!NET.countAt) return; lobbyUI(); Audio.beep(700, .08); setTimeout(tickCount, 1000); }
 function hostRecv(conn, d) {
   if (!d || typeof d !== 'object') return;
+  if (d.t === 'ready') { const p = NET.players.find(p => p.id === conn.peer); if (p) { p.ready = !!d.v; hostLobby(); } return; }
   if (d.t === 'hello') {
     if (!NET.conns.has(conn.peer)) return;
+    const prev = NET.players.length;
     NET.players = NET.players.filter(p => p.id !== conn.peer);
-    NET.players.push({ id: conn.peer, name: cleanName(d.name), spec: cleanSpec(d.spec) });
-    netBroadcast({ t: 'lobby', code: NET.code, players: NET.players }); lobbyUI();
-    Audio.beep(880, .1);
+    if (NET.players.length >= NET.size) { conn.send({ t: 'full' }); setTimeout(() => conn.close(), 400); return; }
+    NET.players.push({ id: conn.peer, name: cleanName(d.name), spec: cleanSpec(d.spec), ready: false });
+    hostLobby(); netArrived(prev);
   } else if (d.t === 'st' && Array.isArray(d.x)) applyState(conn.peer, d.x);
 }
 function dropPlayer(id) {
   if (!NET.conns.has(id) && !NET.players.some(p => p.id === id)) return;
   NET.conns.delete(id); NET.players = NET.players.filter(p => p.id !== id);
   if (R && R.net) { const c = R.cars.find(c => c.remote === id); if (c) { c.gone = true; c.built.group.visible = false; c.s = -1e6; } }
-  netBroadcast({ t: 'lobby', code: NET.code, players: NET.players }); netBroadcast({ t: 'left', id }); lobbyUI();
+  netBroadcast({ t: 'left', id }); hostLobby();
 }
 async function netJoin() {
   saveName();
@@ -1854,23 +1906,25 @@ async function netJoin() {
 }
 function guestRecv(d) {
   if (!d || typeof d !== 'object') return;
-  if (d.t === 'lobby') { NET.players = (d.players || []).map(p => ({ id: String(p.id), name: cleanName(p.name), spec: cleanSpec(p.spec) })); lobbyUI(); }
-  else if (d.t === 'full') { netMsg('房間已滿（最多 4 人）'); }
+  if (d.t === 'lobby') { const prev = NET.players.length; NET.size = clamp(d.size | 0, 2, 4); NET.track = clamp(d.track | 0, 0, TRACKS.length - 1); NET.players = (d.players || []).slice(0, 4).map(p => ({ id: String(p.id), name: cleanName(p.name), spec: cleanSpec(p.spec), ready: !!p.ready })); const was = NET.countAt; NET.countAt = d.countAt > 0 ? performance.now() + Math.min(4000, d.countAt) : 0; lobbyUI(); netArrived(prev); if (NET.countAt && !was) tickCount(); }
+  else if (d.t === 'full') { netMsg('這個房間已經滿了，或是比賽已經開始'); NET.role = null; NET.code = null; lobbyUI(); }
   else if (d.t === 'start') {
     const ti = clamp(d.track | 0, 0, TRACKS.length - 1);
     const cfg = { laps: clamp(d.laps | 0, 1, 3), vmax: [150, 250, 350].includes(d.vmax) ? d.vmax : 350, ai: ['easy', 'pro', 'max'].includes(d.ai) ? d.ai : 'pro', aiType: TYPES.some(t => t.id === d.aiType) ? d.aiType : 'gt3', players: (d.players || []).slice(0, 4).map(p => ({ id: String(p.id), name: cleanName(p.name), spec: cleanSpec(p.spec) })) };
     cfg.players.forEach((p, i) => p.spec[3] = [7, 16, 27, 99][i]);
+    NET.players.forEach(p => p.ready = false); NET.countAt = 0;
     showOv('net', false); goFull(); startRace(ti, cfg);
   }
   else if (d.t === 'w') applyWorld(d);
   else if (d.t === 'left' && R && R.net) { const c = R.cars.find(c => c.remote === d.id); if (c) { c.gone = true; c.built.group.visible = false; c.s = -1e6; } }
 }
 function netStart() {
-  if (NET.role !== 'host') return;
+  if (NET.role !== 'host' || NET.players.length < NET.size) return;
   NET.players[0].spec = mySpec(); NET.players[0].name = NET.name;
-  const ti = clamp(+$('#netTrack').value | 0, 0, TRACKS.length - 1);
+  const ti = NET.track;
   const cfg = { t: 'start', track: ti, laps: sel.laps, vmax: sel.vmax, ai: sel.ai, aiType: sel.type, players: NET.players.map(p => ({ id: p.id, name: p.name, spec: p.spec.slice() })) };
   cfg.players.forEach((p, i) => p.spec[3] = [7, 16, 27, 99][i]);
+  NET.players.forEach(p => p.ready = false);
   netBroadcast(cfg); showOv('net', false); goFull(); startRace(ti, cfg);
 }
 const r2 = v => Math.round(v * 100) / 100;
@@ -1906,8 +1960,17 @@ try { if (window.top !== window) $('#tNet').style.display = 'none'; } catch (e) 
 $('#netHost').onclick = () => netHost();
 $('#netJoin').onclick = () => netJoin();
 $('#netCode').addEventListener('keydown', e => { if (e.key === 'Enter') netJoin(); });
-$('#netStart').onclick = () => netStart();
-$('#netClose').onclick = () => { netReset(); lobbyUI(); showOv('net', false); };
+$('#netReady').onclick = () => {
+  const me = NET.players.find(p => p.id === NET.myId); if (!me) return;
+  const v = !me.ready; Audio.beep(v ? 880 : 440, .1);
+  if (NET.role === 'host') { me.ready = v; NET.players[0].spec = mySpec(); hostLobby(); }
+  else if (NET.hostConn && NET.hostConn.open) { me.ready = v; lobbyUI(); NET.hostConn.send({ t: 'ready', v }); }
+};
+$('#netTrack').addEventListener('change', () => { if (NET.role !== 'host') return; NET.track = clamp(+$('#netTrack').value | 0, 0, TRACKS.length - 1); NET.players.forEach(p => p.ready = false); hostLobby(); });
+$('#netClose').onclick = () => { if (!NET.role) netReset(); showOv('net', false); };
+$('#netHide').onclick = () => { showOv('net', false); netBadge(); };
+$('#netLeave').onclick = () => { netReset(); lobbyUI(); netMsg(''); };
+$('#netSize').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; NET.size = +b.dataset.n; store.set('roomSize', NET.size); lobbyUI(); });
 
 /* =========================================================
    LOOP
