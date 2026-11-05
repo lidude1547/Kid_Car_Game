@@ -101,6 +101,14 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
 #hLap{font-size:clamp(14px,2.6vw,18px);font-weight:900;color:var(--muted)}
 #hud .tc2{position:absolute;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));text-align:center}
 #hTime{font-size:clamp(22px,4.4vw,34px);font-weight:800;line-height:1}
+#prog{position:absolute;left:50%;transform:translateX(-50%);top:calc(74px + env(safe-area-inset-top));width:min(46vw,420px);height:34px;pointer-events:none}
+#prog .pline{position:absolute;left:0;right:22px;top:15px;height:5px;border-radius:3px;background:rgba(255,255,255,.35);box-shadow:0 1px 4px rgba(0,0,0,.5)}
+#prog .pflag{position:absolute;right:0;top:4px;font-size:20px;line-height:1}
+#pmarks{position:absolute;left:0;right:22px;top:0;bottom:0}
+.pm{position:absolute;top:17px;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#9aa3ad;border:1.5px solid #333;transition:left .15s linear}
+.pm.h{width:26px;height:26px;margin:-13px 0 0 -13px;border:2.5px solid #fff;display:grid;place-items:center;font-size:12px;font-weight:900;color:#fff;text-shadow:0 1px 2px #000;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.pm.me{width:32px;height:32px;margin:-16px 0 0 -16px;border:3.5px solid #ffd400;z-index:3;font-size:13px}
+@media (orientation:landscape) and (max-height:520px){#prog{top:calc(58px + env(safe-area-inset-top));width:min(40vw,340px)}}
 #hTarget{font-size:13px;font-weight:700;color:var(--go)}
 #hud .tr{position:absolute;right:calc(12px + env(safe-area-inset-right));top:calc(10px + env(safe-area-inset-top));display:flex;gap:8px;align-items:flex-start}
 #mini{width:clamp(96px,17vw,150px);height:clamp(96px,17vw,150px);border-radius:16px;background:rgba(8,12,20,.6);border:1px solid var(--line)}
@@ -183,6 +191,9 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
 #netReady.on{background:linear-gradient(180deg,#ffd84a,#e0a800);color:#111;box-shadow:0 5px 0 #8a6a00}
 .ntrack{text-align:center;font-weight:900;margin:4px 0 12px;background:var(--panel2);border-radius:14px;padding:10px}
 .ncount{font-size:22px;color:var(--yellow);text-align:center;font-weight:900;margin:6px 0}
+.rnote{background:var(--yellow);color:#111;font-weight:900;border-radius:16px;padding:10px 12px;margin:0 0 12px;font-size:15px;line-height:1.5}
+.btn.pulse{animation:bp 1s ease-in-out infinite;background:linear-gradient(180deg,#ffd84a,#e0a800);color:#111;border-color:transparent}
+@keyframes bp{50%{transform:scale(1.08)}}
 .nmsg{min-height:20px;text-align:center;font-weight:700;color:var(--yellow);margin-top:8px}
 #err{position:fixed;inset:0;display:none;z-index:99;align-items:center;justify-content:center;text-align:center;padding:24px;font-size:18px}
 </style>
@@ -240,6 +251,7 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
     <div class="hbox"><div id="hPos">第 9 名</div><div id="hLap">第 1 / 1 圈</div></div>
   </div>
   <div class="tc2 hbox"><div id="hTime" class="num">0:00.0</div><div id="hTarget">目標 1:00</div></div>
+  <div id="prog"><div class="pline"></div><span class="pflag">🏁</span><div id="pmarks"></div></div>
   <div class="tr">
     <canvas id="mini" width="300" height="300"></canvas>
     <div class="ibs">
@@ -285,6 +297,7 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
   <h2 id="rTitle">冠軍！</h2>
   <div class="stars" id="rStars"></div>
   <div class="info" id="rInfo"></div>
+  <div class="rnote" id="rNote" hidden></div>
   <div class="btns">
     <button class="btn go" id="rAgain">🔄 再玩一次</button>
     <button class="btn" id="rNext">➜ 下一站</button>
@@ -300,6 +313,7 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
     <label class="nl">你的名字<input id="netName" maxlength="8" autocomplete="off"></label>
     <div class="nl">房間人數</div>
     <div class="nsize" id="netSize"><button data-n="2">2 人</button><button data-n="3">3 人</button><button data-n="4">4 人</button></div>
+    <label class="nl">開房密碼<input id="netPw" type="password" inputmode="numeric" maxlength="8" placeholder="輸入開房密碼" autocomplete="off"></label>
     <button class="btn go wide" id="netHost">🏠 開房間</button>
     <div class="nor">或是加入朋友的房間</div>
     <div class="nrow"><input id="netCode" inputmode="numeric" maxlength="4" placeholder="房號 4 位數" autocomplete="off"><button class="btn go" id="netJoin">加入</button></div>
@@ -1270,6 +1284,20 @@ function startRace(ti, net = null) {
       car.targetD = car.d;
       R.scene.add(built.group); R.cars.push(car);
     }
+    R.cars.forEach(c => {
+      if (!c.ai && !c.me) { // floating name tag above friends' cars
+        const nc = document.createElement('canvas'); nc.width = 256; nc.height = 80; const x = nc.getContext('2d');
+        x.fillStyle = c.spec[1]; x.beginPath(); if (x.roundRect) x.roundRect(4, 4, 248, 72, 30); else x.rect(4, 4, 248, 72); x.fill();
+        x.lineWidth = 6; x.strokeStyle = '#fff'; x.stroke();
+        x.fillStyle = '#fff'; x.font = '900 44px "Noto Sans TC",sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+        x.strokeStyle = 'rgba(0,0,0,.55)'; x.lineWidth = 6; x.strokeText(c.name, 128, 43); x.fillText(c.name, 128, 43);
+        const t = new THREE.CanvasTexture(nc); t.colorSpace = THREE.SRGBColorSpace;
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
+        sp.scale.set(2.6 / c.built.scale, .81 / c.built.scale, 1); sp.position.y = 2.6 / c.built.scale; sp.renderOrder = 10; c.built.group.add(sp);
+      }
+    });
+    $('#pmarks').innerHTML = R.cars.map((c, i) => c.ai ? `<i class="pm" data-i="${i}"></i>` : `<i class="pm h ${c.me ? 'me' : ''}" data-i="${i}" style="background:${c.spec[1]}">${c.me ? '你' : [...c.name][0]}</i>`).join('');
+    R.pm = [...document.querySelectorAll('#pmarks .pm')];
     R.me = R.cars.find(c => c.me); R.laps = laps; R.target = targetFor(ti, laps, vmaxK); R.prof = speedProfile(td, vmax); R.shake = 0; R.camDir = new THREE.Vector3();
     R.vmax = vmax; R.t = 0; R.phase = 'lights'; R.phaseT = 0; R.lightsOn = 0; R.goAt = net ? 5.0 : 4.4 + rnd(.3, .9); R.finishT = 0; R.lastLap = 1; R.bumpT = 0;
     renderer.toneMappingExposure = R.night ? 1.0 : R.sunset ? .62 : .5;
@@ -1444,7 +1472,7 @@ function updateRace(dt) {
   const tShow = R.phase === 'done' ? R.finalTime : R.t;
   $('#hTime').textContent = fmt(tShow);
   $('#hTarget').style.color = tShow <= R.target ? 'var(--go)' : 'var(--yellow)';
-  drawMini();
+  drawMini(); drawProgress();
   // upcoming-corner sign (manual steering only)
   const tEl = $('#turn');
   if (R.phase === 'race' && sel.steer !== 'auto' && R.phaseT > R.goAt + 1.2) {
@@ -1475,6 +1503,8 @@ function finishRace() {
     startPodium(R.order.slice(0, 3));
   }, 2200);
   R.showResult = () => {
+    $('#rNote').hidden = true; $('#rNext').classList.remove('pulse');
+    if (R.net && NET.pendingNext != null) showNextNote(NET.pendingNext);
     const p = R.finalPos;
     $('#rIcon').textContent = p === 1 ? '🏆' : p === 2 ? '🥈' : p === 3 ? '🥉' : '🎉';
     $('#rTitle').textContent = p === 1 ? '冠軍！' : '第 ' + p + ' 名！好棒！';
@@ -1594,9 +1624,22 @@ function drawMini() {
   const p0 = R.td.pos[0]; mctx.fillStyle = '#111'; mctx.fillRect(m.ox + p0.x * m.sc - 6, m.oz + p0.z * m.sc - 6, 12, 12);
   for (const c of R.cars) {
     const g = c.built.group.position; const x = m.ox + g.x * m.sc, y = m.oz + g.z * m.sc;
-    mctx.beginPath(); mctx.arc(x, y, c.me ? 13 : 8, 0, TAU);
-    mctx.fillStyle = c.me ? sel.color : '#ffffff'; mctx.fill(); mctx.lineWidth = c.me ? 5 : 3; mctx.strokeStyle = c.me ? '#ffd400' : '#333'; mctx.stroke();
+    if (c.gone) continue;
+    if (c.ai) { mctx.beginPath(); mctx.arc(x, y, 6, 0, TAU); mctx.fillStyle = '#c9ced6'; mctx.fill(); mctx.lineWidth = 2.5; mctx.strokeStyle = '#333'; mctx.stroke(); continue; }
+    c.mm = { x, y };
   }
+  for (const c of R.cars) { // friends and me on top
+    if (c.ai || c.gone || !c.mm) continue;
+    const r = c.me ? 16 : 14;
+    mctx.beginPath(); mctx.arc(c.mm.x, c.mm.y, r, 0, TAU); mctx.fillStyle = c.spec[1]; mctx.fill();
+    mctx.lineWidth = c.me ? 6 : 4; mctx.strokeStyle = c.me ? '#ffd400' : '#fff'; mctx.stroke();
+    mctx.fillStyle = '#fff'; mctx.font = '900 16px "Noto Sans TC",sans-serif'; mctx.textAlign = 'center'; mctx.textBaseline = 'middle';
+    mctx.strokeStyle = 'rgba(0,0,0,.7)'; mctx.lineWidth = 4; const ch = c.me ? '你' : [...c.name][0]; mctx.strokeText(ch, c.mm.x, c.mm.y + 1); mctx.fillText(ch, c.mm.x, c.mm.y + 1);
+  }
+}
+function drawProgress() {
+  if (!R.pm) return; const tot = R.laps * R.td.L;
+  R.cars.forEach((c, i) => { const el = R.pm[i]; if (!el) return; if (c.gone) { el.style.display = 'none'; return; } el.style.left = (clamp(c.s / tot, 0, 1) * 100).toFixed(2) + '%'; });
 }
 
 /* =========================================================
@@ -1730,8 +1773,8 @@ $('#pResume').onclick = () => setPause(false);
 $('#pRestart').onclick = () => startRace(sel.track);
 $('#pTracks').onclick = () => toMenu('tracks');
 $('#pGarage').onclick = () => toMenu('garage');
-$('#rAgain').onclick = () => { if (R && R.net) return openNet(); startRace(sel.track); };
-$('#rNext').onclick = () => { if (R && R.net) { if (NET.role === 'host') { NET.track = (sel.track + 1) % TRACKS.length; NET.players.forEach(p => p.ready = false); hostLobby(); } return openNet(); } startRace((sel.track + 1) % TRACKS.length); };
+$('#rAgain').onclick = () => { if (R && R.net) { if (NET.role === 'host') hostNext(NET.track, true); else NET.pendingNext = null; return openNet(); } startRace(sel.track); };
+$('#rNext').onclick = () => { if (R && R.net) { if (NET.role === 'host') hostNext((sel.track + 1) % TRACKS.length); else NET.pendingNext = null; return openNet(); } startRace((sel.track + 1) % TRACKS.length); };
 $('#rTracks').onclick = () => toMenu('tracks');
 $('#rGarage').onclick = () => toMenu('garage');
 $('#bCam').onclick = () => { camMode = (camMode + 1) % 3; store.set('cam', camMode); };
@@ -1759,7 +1802,7 @@ function hold(id, key) {
 hold('#bL', 'left'); hold('#bR', 'right'); hold('#bGas', 'gas'); hold('#bBrake', 'brake'); hold('#bHorn', 'horn');
 const KEYS = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'gas', KeyW: 'gas', ArrowDown: 'brake', KeyS: 'brake' };
 addEventListener('keydown', e => {
-  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) { if (e.target.id === 'netPw' && e.key === 'Enter') netHost(); return; }
   if (KEYS[e.code]) { input[KEYS[e.code]] = 1; e.preventDefault(); }
   if (mode !== 'race') return;
   if (e.code === 'Space') { Audio.horn(); e.preventDefault(); }
@@ -1825,12 +1868,16 @@ function netArrived(prev) {
 function openNet() {
   if (!$('#netTrack').options.length) $('#netTrack').innerHTML = TRACKS.map((t, i) => `<option value="${i}">第 ${i + 1} 站　${t.zh}・${t.ci}</option>`).join('');
   $('#netTrack').value = NET.role ? NET.track : sel.track;
-  $('#netName').value = NET.name; netMsg(''); lobbyUI();
+  $('#netName').value = NET.name; netMsg(NET.role === 'guest' && NET.code ? '請按「開始比賽」顯示 READY，大家都 READY 就開跑！' : ''); lobbyUI();
   if (mode === 'race' || mode === 'podium') toMenu('tracks');
   showOv('result', false); showOv('net', true);
 }
 function saveName() { NET.name = cleanName($('#netName').value); store.set('nick', NET.name); }
+const HOST_PW_HASH = 3959373116; // FNV-1a of 'kidcar:' + host password
+function pwHash(str) { let h = 0x811c9dc5; for (const b of new TextEncoder().encode(str)) { h ^= b; h = Math.imul(h, 0x01000193) >>> 0; } return h >>> 0; }
 async function netHost() {
+  if (pwHash('kidcar:' + $('#netPw').value.trim()) !== HOST_PW_HASH) { netMsg('開房密碼不對，請再試一次'); $('#netPw').value = ''; $('#netPw').focus(); Audio.beep(220, .2); return; }
+  $('#netPw').value = '';
   saveName(); netMsg('開房間中…');
   try { await loadPeer(); } catch (e) { return netMsg('連線元件載入失敗，請確認有網路'); }
   netReset();
@@ -1858,6 +1905,21 @@ async function netHost() {
 function hostLobby() {
   netBroadcast({ t: 'lobby', code: NET.code, size: NET.size, track: NET.track, countAt: NET.countAt ? Math.max(0, NET.countAt - performance.now()) : 0, players: NET.players });
   lobbyUI(); hostCheckStart();
+}
+function hostNext(ti, again = false) {
+  NET.track = ti; NET.players.forEach(p => p.ready = false);
+  netBroadcast({ t: 'next', track: ti, again: !!again }); hostLobby();
+  netMsg('已通知朋友：請按「下一站」並按「開始比賽」READY');
+}
+function nextText(ti, again) { return (again ? '🔄 房主要再跑一次：' : '🏁 房主要去下一站：') + '第 ' + (ti + 1) + ' 站 ' + TRACKS[ti].zh + '・' + TRACKS[ti].ci; }
+function showNextNote(n) {
+  const resultOpen = $('#result').classList.contains('on');
+  if (resultOpen) {
+    $('#rNote').innerHTML = nextText(n.track, n.again) + '<br>請按「' + (n.again ? '🔄 再玩一次' : '➜ 下一站') + '」，然後按「開始比賽」顯示 READY！';
+    $('#rNote').hidden = false; $(n.again ? '#rAgain' : '#rNext').classList.add('pulse');
+  }
+  if ($('#net').classList.contains('on')) netMsg(nextText(n.track, n.again) + '　請按「開始比賽」READY！');
+  else if (!resultOpen && mode !== 'race') banner(n.again ? '再跑一次！' : '下一站！', 1800);
 }
 function hostCheckStart() {
   const allIn = NET.players.length === NET.size && NET.players.every(p => p.ready);
@@ -1912,10 +1974,16 @@ function guestRecv(d) {
     const ti = clamp(d.track | 0, 0, TRACKS.length - 1);
     const cfg = { laps: clamp(d.laps | 0, 1, 3), vmax: [150, 250, 350].includes(d.vmax) ? d.vmax : 350, ai: ['easy', 'pro', 'max'].includes(d.ai) ? d.ai : 'pro', aiType: TYPES.some(t => t.id === d.aiType) ? d.aiType : 'gt3', players: (d.players || []).slice(0, 4).map(p => ({ id: String(p.id), name: cleanName(p.name), spec: cleanSpec(p.spec) })) };
     cfg.players.forEach((p, i) => p.spec[3] = [7, 16, 27, 99][i]);
-    NET.players.forEach(p => p.ready = false); NET.countAt = 0;
+    NET.players.forEach(p => p.ready = false); NET.countAt = 0; NET.pendingNext = null;
     showOv('net', false); goFull(); startRace(ti, cfg);
   }
   else if (d.t === 'w') applyWorld(d);
+  else if (d.t === 'next') {
+    const n = { track: clamp(d.track | 0, 0, TRACKS.length - 1), again: !!d.again }; NET.track = n.track; NET.pendingNext = n;
+    lobbyUI(); Audio.tone(660, .25, 'triangle', .3); setTimeout(() => Audio.tone(880, .3, 'triangle', .3), 150);
+    say(n.again ? '房主要再跑一次囉，請按開始比賽' : '房主要去下一站囉，請按下一站，再按開始比賽');
+    if (mode !== 'race' || (R && R.phase === 'done')) showNextNote(n);
+  }
   else if (d.t === 'left' && R && R.net) { const c = R.cars.find(c => c.remote === d.id); if (c) { c.gone = true; c.built.group.visible = false; c.s = -1e6; } }
 }
 function netStart() {
@@ -1966,7 +2034,7 @@ $('#netReady').onclick = () => {
   if (NET.role === 'host') { me.ready = v; NET.players[0].spec = mySpec(); hostLobby(); }
   else if (NET.hostConn && NET.hostConn.open) { me.ready = v; lobbyUI(); NET.hostConn.send({ t: 'ready', v }); }
 };
-$('#netTrack').addEventListener('change', () => { if (NET.role !== 'host') return; NET.track = clamp(+$('#netTrack').value | 0, 0, TRACKS.length - 1); NET.players.forEach(p => p.ready = false); hostLobby(); });
+$('#netTrack').addEventListener('change', () => { if (NET.role !== 'host') return; hostNext(clamp(+$('#netTrack').value | 0, 0, TRACKS.length - 1)); });
 $('#netClose').onclick = () => { if (!NET.role) netReset(); showOv('net', false); };
 $('#netHide').onclick = () => { showOv('net', false); netBadge(); };
 $('#netLeave').onclick = () => { netReset(); lobbyUI(); netMsg(''); };
