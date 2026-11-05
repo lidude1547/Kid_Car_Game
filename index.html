@@ -194,6 +194,10 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
 .rnote{background:var(--yellow);color:#111;font-weight:900;border-radius:16px;padding:10px 12px;margin:0 0 12px;font-size:15px;line-height:1.5}
 .btn.pulse{animation:bp 1s ease-in-out infinite;background:linear-gradient(180deg,#ffd84a,#e0a800);color:#111;border-color:transparent}
 @keyframes bp{50%{transform:scale(1.08)}}
+.nroom{display:grid;grid-template-columns:1fr auto;align-items:center;width:100%;text-align:left;background:linear-gradient(180deg,rgba(52,211,104,.22),rgba(22,163,74,.18));border:2px solid rgba(52,211,104,.6);border-radius:16px;padding:10px 14px;margin-bottom:8px;gap:2px 10px}
+.nroom b{font-size:18px;font-weight:900}.nroom span{grid-column:1;color:var(--muted);font-weight:700;font-size:13px}.nroom em{grid-row:1/3;grid-column:2;font-style:normal;font-weight:900;background:#16a34a;color:#fff;border-radius:12px;padding:8px 12px}
+.nroom:disabled{opacity:.5;border-color:var(--line);background:var(--panel2)}
+.ncodebox{margin:8px 0 4px;color:var(--muted);font-weight:700}.ncodebox summary{cursor:pointer;padding:6px 0}
 .nmsg{min-height:20px;text-align:center;font-weight:700;color:var(--yellow);margin-top:8px}
 #err{position:fixed;inset:0;display:none;z-index:99;align-items:center;justify-content:center;text-align:center;padding:24px;font-size:18px}
 </style>
@@ -310,17 +314,23 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
 <div id="net" class="ov"><div class="box" style="text-align:left">
   <h2 style="text-align:center">👥 連線對戰</h2>
   <div id="netHome">
-    <label class="nl">你的名字<input id="netName" maxlength="8" autocomplete="off"></label>
+    <label class="nl">你的名字（中文、英文都可以）<input id="netName" maxlength="12" autocomplete="off" placeholder="例如：小明、Edison"></label>
+    <div class="nl" style="margin-bottom:6px">👇 點一下朋友的房間就能加入</div>
+    <div id="netRooms"></div>
+    <details class="ncodebox"><summary>用房號加入</summary>
+      <div class="nrow"><input id="netCode" inputmode="numeric" maxlength="4" placeholder="房號 4 位數" autocomplete="off"><button class="btn go" id="netJoin">加入</button></div>
+    </details>
+    <div class="nor">── 我要當房主 ──</div>
+    <label class="nl">房間名稱（朋友會在清單看到這個名字）<input id="netRoomName" maxlength="12" autocomplete="off" placeholder="例如：閃電車隊、Edison Racing"></label>
     <div class="nl">房間人數</div>
     <div class="nsize" id="netSize"><button data-n="2">2 人</button><button data-n="3">3 人</button><button data-n="4">4 人</button></div>
     <label class="nl">開房密碼<input id="netPw" type="password" inputmode="numeric" maxlength="8" placeholder="輸入開房密碼" autocomplete="off"></label>
     <button class="btn go wide" id="netHost">🏠 開房間</button>
-    <div class="nor">或是加入朋友的房間</div>
-    <div class="nrow"><input id="netCode" inputmode="numeric" maxlength="4" placeholder="房號 4 位數" autocomplete="off"><button class="btn go" id="netJoin">加入</button></div>
   </div>
   <div id="netLobby" hidden>
-    <div class="ncode">房號 <b class="num" id="netCodeShow">----</b></div>
-    <div class="nhint" id="netHint">把房號告訴朋友，請他按「連線對戰」輸入房號</div>
+    <div class="ncode"><span id="netRoomShow" style="display:block;font-size:22px;margin-bottom:4px"></span>房號 <b class="num" id="netCodeShow">----</b></div>
+    <div class="nhint" id="netHint">朋友打開遊戲按「連線對戰」，就會在清單看到你的房間；也可以傳邀請連結給他</div>
+    <button class="btn wide" id="netInvite" style="margin-bottom:8px">📋 複製邀請連結</button>
     <div id="netPlayers"></div>
     <div id="netHostCtl">
       <label class="nl">賽道（房主選）<select id="netTrack"></select></label>
@@ -1289,7 +1299,8 @@ function startRace(ti, net = null) {
         const nc = document.createElement('canvas'); nc.width = 256; nc.height = 80; const x = nc.getContext('2d');
         x.fillStyle = c.spec[1]; x.beginPath(); if (x.roundRect) x.roundRect(4, 4, 248, 72, 30); else x.rect(4, 4, 248, 72); x.fill();
         x.lineWidth = 6; x.strokeStyle = '#fff'; x.stroke();
-        x.fillStyle = '#fff'; x.font = '900 44px "Noto Sans TC",sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+        let fs = 44; x.font = `900 ${fs}px "Noto Sans TC",sans-serif`; while (x.measureText(c.name).width > 228 && fs > 18) { fs -= 2; x.font = `900 ${fs}px "Noto Sans TC",sans-serif`; }
+        x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle';
         x.strokeStyle = 'rgba(0,0,0,.55)'; x.lineWidth = 6; x.strokeText(c.name, 128, 43); x.fillText(c.name, 128, 43);
         const t = new THREE.CanvasTexture(nc); t.colorSpace = THREE.SRGBColorSpace;
         const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
@@ -1817,7 +1828,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) setPa
 /* =========================================================
    ONLINE MULTIPLAYER (room code; messages relayed by a public MQTT server over secure WebSocket)
    ========================================================= */
-const NET = { mq: null, role: null, code: null, myId: null, players: [], seen: new Map(), hb: null, lastHb: 0, lastHost: 0, sendT: 0, name: store.get('nick', ''), size: clamp(store.get('roomSize', 2) | 0, 2, 4), track: 0, countT: null, countAt: 0, pendingNext: null };
+const NET = { mq: null, role: null, code: null, myId: null, players: [], seen: new Map(), hb: null, lastHb: 0, lastHost: 0, sendT: 0, name: store.get('nick', ''), roomName: store.get('roomName', ''), size: clamp(store.get('roomSize', 2) | 0, 2, 4), track: 0, countT: null, countAt: 0, pendingNext: null };
 const BROKERS = window.__BROKERS || ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081'];
 const TOP = code => 'kidcar-lidude1547/v2/' + code;
 const MQTT_LIBS = ['https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js', 'https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js', 'https://cdn.jsdelivr.net/npm/mqtt@5.3.5/dist/mqtt.min.js'];
@@ -1846,13 +1857,41 @@ function retainedGet(c, topic, ms) {
     c.on('message', h); c.subscribe(topic, { qos: 1 }); setTimeout(() => fin(null), ms);
   });
 }
+const BROWSE = { c: null, on: false, rooms: new Map(), t: null };
+async function browseStart() {
+  if (BROWSE.on) return; BROWSE.on = true; BROWSE.rooms.clear(); renderRooms();
+  try { await loadMqtt(); } catch (e) { BROWSE.on = false; $('#netRooms').innerHTML = '<div class="nhint">連線元件載入失敗，請確認有網路</div>'; return; }
+  let c = null;
+  for (const u of BROKERS) { if (!BROWSE.on) return; try { c = await mqConnect(u, { clientId: 'kidcar_b' + Math.random().toString(36).slice(2, 10), clean: true }); break; } catch (e) { } }
+  if (!BROWSE.on) { if (c) try { c.end(true); } catch (e) { } return; }
+  if (!c) { BROWSE.on = false; $('#netRooms').innerHTML = '<div class="nhint">連不到連線伺服器，請確認網路</div>'; return; }
+  BROWSE.c = c;
+  c.on('message', (t, buf) => {
+    if (BROWSE.c !== c) return; const m = t.match(/\/v2\/(\d{4})\/room$/); if (!m) return;
+    const str = buf ? buf.toString() : ''; if (!str) BROWSE.rooms.delete(m[1]); else { try { BROWSE.rooms.set(m[1], JSON.parse(str)); } catch (e) { } }
+    renderRooms();
+  });
+  c.subscribe(TOP('+') + '/room', { qos: 1 });
+  BROWSE.t = setInterval(renderRooms, 3000); renderRooms();
+}
+function browseStop() { BROWSE.on = false; clearInterval(BROWSE.t); if (BROWSE.c) { try { BROWSE.c.end(true); } catch (e) { } BROWSE.c = null; } }
+function renderRooms() {
+  const el = $('#netRooms'); if (!el) return;
+  if (!BROWSE.c) { el.innerHTML = '<div class="nhint">尋找房間中…</div>'; return; }
+  const now = Date.now();
+  const list = [...BROWSE.rooms.entries()].filter(([, r]) => r && now - (r.ts || 0) < 10 * 60 * 1000).sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0)).slice(0, 12);
+  el.innerHTML = list.length ? list.map(([code, r]) => {
+    const size = clamp(r.size | 0, 2, 4), n = clamp(r.n | 0 || 1, 1, 4), full = n >= size || r.racing;
+    return `<button class="nroom" data-code="${code}" ${full ? 'disabled' : ''}><b>🏁 ${cleanName(r.room || r.host)}</b><span>${n} / ${size} 人${r.racing ? '・比賽中' : full ? '・已滿' : '・房號 ' + code}</span><em>${r.racing ? '比賽中' : full ? '已滿' : '加入 ➜'}</em></button>`;
+  }).join('') : '<div class="nhint">現在沒有開著的房間。請房主先開房間，開好後這裡會自動出現。</div>';
+}
 function sendHost(m) { if (!NET.mq || !NET.code) return; m.from = NET.myId; try { NET.mq.publish(TOP(NET.code) + '/h', JSON.stringify(m), { qos: m.t === 'st' || m.t === 'hb' ? 0 : 1 }); } catch (e) { } }
 const mySpec = () => [sel.type, sel.color, sel.brand, 7, sel.make];
 function cleanSpec(sp) {
   sp = Array.isArray(sp) ? sp : [];
   return [TYPES.some(t => t.id === sp[0]) ? sp[0] : 'gt3', /^#[0-9a-f]{6}$/i.test(sp[1]) ? sp[1] : '#1f5fe0', BRANDS.some(b => b.id === sp[2]) ? sp[2] : 'star', 7, MAKES.some(m => m.id === sp[4]) ? sp[4] : 'zephron'];
 }
-const cleanName = n => (String(n || '').replace(/[<>&"]/g, '').trim().slice(0, 8) || '玩家');
+const cleanName = n => ([...String(n || '').replace(/[<>&"'`]/g, '').trim()].slice(0, 12).join('') || '玩家');
 function netMsg(t) { $('#netMsg').textContent = t || ''; }
 function netReset() {
   clearInterval(NET.hb); NET.hb = null; if (NET.countT) { clearTimeout(NET.countT); NET.countT = null; } NET.countAt = 0;
@@ -1863,7 +1902,7 @@ function netReset() {
       const c = NET.mq; setTimeout(() => { try { c.end(true); } catch (e) { } }, 400);
     }
   } catch (e) { }
-  NET.mq = null; NET.role = null; NET.code = null; NET.myId = null; NET.players = []; NET.seen = new Map(); NET.pendingNext = null;
+  NET.mq = null; NET.mark = null; NET.role = null; NET.code = null; NET.myId = null; NET.players = []; NET.seen = new Map(); NET.pendingNext = null;
 }
 function netBroadcast(m) { if (!NET.mq || !NET.code) return; try { NET.mq.publish(TOP(NET.code) + '/a', JSON.stringify(m), { qos: m.t === 'w' || m.t === 'hb' ? 0 : 1 }); } catch (e) { } }
 function lobbyUI() {
@@ -1873,7 +1912,7 @@ function lobbyUI() {
   document.querySelectorAll('#netSize button').forEach(b => b.classList.toggle('sel', +b.dataset.n === NET.size));
   netBadge();
   if (!inRoom) return;
-  $('#netCodeShow').textContent = NET.code;
+  $('#netCodeShow').textContent = NET.code; $('#netRoomShow').textContent = NET.roomName ? '🏁 ' + NET.roomName : '';
   const n = NET.players.length, need = NET.size - n;
   let html = NET.players.map((p, i) => `<div class="np"><i style="background:${cleanSpec(p.spec)[1]}"></i>${cleanName(p.name)}${p.id === NET.myId ? '（你）' : ''}<span class="rd ${p.ready ? 'on' : ''}">${p.ready ? '✅ READY' : '等待中…'}</span><small>${i === 0 ? '房主' : '玩家 ' + (i + 1)}</small></div>`).join('');
   for (let i = n; i < NET.size; i++) html += `<div class="np empty"><i style="background:transparent"></i>等待玩家加入…<small>玩家 ${i + 1}</small></div>`;
@@ -1890,7 +1929,7 @@ function lobbyUI() {
 }
 function netBadge() {
   const b = $('#tNet'); if (!b) return;
-  b.textContent = NET.role && NET.code ? `👥 房間 ${NET.code}（${NET.players.length}/${NET.size}）` : '👥 連線對戰';
+  b.textContent = NET.role && NET.code ? `👥 ${NET.roomName || '房間 ' + NET.code}（${NET.players.length}/${NET.size}）` : '👥 連線對戰';
 }
 function netArrived(prev) {
   // someone joined/left while the lobby may be hidden: tell the player, pop the lobby up when the room is full
@@ -1900,9 +1939,10 @@ function netArrived(prev) {
 function openNet() {
   if (!$('#netTrack').options.length) $('#netTrack').innerHTML = TRACKS.map((t, i) => `<option value="${i}">第 ${i + 1} 站　${t.zh}・${t.ci}</option>`).join('');
   $('#netTrack').value = NET.role ? NET.track : sel.track;
-  $('#netName').value = NET.name; netMsg(NET.role === 'guest' && NET.code ? '請按「開始比賽」顯示 READY，大家都 READY 就開跑！' : ''); lobbyUI();
+  $('#netName').value = NET.name; if (!$('#netRoomName').value) $('#netRoomName').value = NET.roomName; netMsg(NET.role === 'guest' && NET.code ? '請按「開始比賽」顯示 READY，大家都 READY 就開跑！' : ''); lobbyUI();
   if (mode === 'race' || mode === 'podium') toMenu('tracks');
   showOv('result', false); showOv('net', true);
+  if (!NET.role) browseStart();
 }
 function saveName() { NET.name = cleanName($('#netName').value); store.set('nick', NET.name); }
 const HOST_PW_HASH = 3959373116; // FNV-1a of 'kidcar:' + host password
@@ -1910,9 +1950,11 @@ function pwHash(str) { let h = 0x811c9dc5; for (const b of new TextEncoder().enc
 async function netHost() {
   if (pwHash('kidcar:' + $('#netPw').value.trim()) !== HOST_PW_HASH) { netMsg('開房密碼不對，請再試一次'); $('#netPw').value = ''; $('#netPw').focus(); Audio.beep(220, .2); return; }
   $('#netPw').value = '';
-  saveName(); netMsg('開房間中…');
+  saveName(); NET.roomName = cleanName($('#netRoomName').value) === '玩家' ? '' : cleanName($('#netRoomName').value);
+  if (!NET.roomName) { netMsg('請先幫房間取一個名字'); $('#netRoomName').focus(); return; }
+  store.set('roomName', NET.roomName); netMsg('開房間中…');
   try { await loadMqtt(); } catch (e) { return netMsg('連線元件載入失敗，請確認有網路'); }
-  netReset();
+  netReset(); browseStop();
   let client = null;
   for (const u of BROKERS) { try { client = await mqConnect(u, { clientId: 'kidcar_h' + Math.random().toString(36).slice(2, 10), clean: false }); break; } catch (e) { } }
   if (!client) return netMsg('連不到連線伺服器，請確認網路後再試一次');
@@ -1926,7 +1968,8 @@ async function netHost() {
   NET.track = sel.track; NET.players = [{ id: 'host', name: NET.name, spec: mySpec(), ready: false }];
   client.on('message', (t, buf) => { if (t !== TOP(code) + '/h') return; let d; try { d = JSON.parse(buf.toString()); } catch (e) { return; } hostRecv(d); });
   client.subscribe(TOP(code) + '/h', { qos: 1 });
-  const mark = () => { if (NET.mq === client && NET.role === 'host') client.publish(TOP(code) + '/room', JSON.stringify({ ts: Date.now(), size: NET.size, host: NET.name }), { qos: 1, retain: true }); };
+  const mark = () => { if (NET.mq === client && NET.role === 'host') client.publish(TOP(code) + '/room', JSON.stringify({ ts: Date.now(), size: NET.size, n: NET.players.length, racing: !!(R && R.net && mode === 'race'), host: NET.name, room: NET.roomName }), { qos: 1, retain: true }); };
+  NET.mark = mark;
   mark(); client.on('connect', () => { mark(); hostLobby(); });
   NET.hb = setInterval(() => {
     if (NET.role !== 'host') return;
@@ -1939,7 +1982,8 @@ async function netHost() {
   netMsg(''); lobbyUI();
 }
 function hostLobby() {
-  netBroadcast({ t: 'lobby', code: NET.code, size: NET.size, track: NET.track, countAt: NET.countAt ? Math.max(0, NET.countAt - performance.now()) : 0, players: NET.players });
+  if (NET.mark) NET.mark();
+  netBroadcast({ t: 'lobby', code: NET.code, room: NET.roomName, size: NET.size, track: NET.track, countAt: NET.countAt ? Math.max(0, NET.countAt - performance.now()) : 0, players: NET.players });
   lobbyUI(); hostCheckStart();
 }
 function hostNext(ti, again = false) {
@@ -1985,11 +2029,11 @@ function dropPlayer(id) {
   if (R && R.net) { const c = R.cars.find(c => c.remote === id); if (c) { c.gone = true; c.built.group.visible = false; c.s = -1e6; } }
   netBroadcast({ t: 'left', id }); hostLobby();
 }
-async function netJoin() {
+async function netJoin(codeArg) {
   saveName();
-  const code = $('#netCode').value.replace(/\D/g, '');
-  if (code.length !== 4) return netMsg('請輸入 4 位數房號');
-  netMsg('找房間中…');
+  const code = String(codeArg || $('#netCode').value).replace(/\D/g, '');
+  if (code.length !== 4) return netMsg('請在上面的清單點朋友的房間，或輸入 4 位數房號');
+  netMsg('加入房間中…'); browseStop();
   try { await loadMqtt(); } catch (e) { return netMsg('連線元件載入失敗，請確認有網路'); }
   netReset();
   const gid = 'g' + Math.random().toString(36).slice(2, 10);
@@ -2001,8 +2045,8 @@ async function netJoin() {
     if (r && Date.now() - (r.ts || 0) < 30 * 60 * 1000) { found = c; break; }
     try { c.end(true); } catch (e) { }
   }
-  if (!reached) return netMsg('連不到連線伺服器，請確認網路後再試一次');
-  if (!found) return netMsg('找不到房間 ' + code + '。請確認房號，並請房主先開好房間、遊戲畫面保持開著');
+  if (!reached) { browseStart(); return netMsg('連不到連線伺服器，請確認網路後再試一次'); }
+  if (!found) { browseStart(); return netMsg('找不到房間 ' + code + '。請確認房號，並請房主先開好房間、遊戲畫面保持開著'); }
   NET.mq = found; NET.myId = gid; NET.role = 'guest'; NET.code = code; NET.players = []; NET.lastHost = Date.now();
   found.on('message', (t, buf) => {
     if (t !== TOP(code) + '/a' || NET.mq !== found) return; let d; try { d = JSON.parse(buf.toString()); } catch (e) { return; }
@@ -2020,9 +2064,9 @@ async function netJoin() {
 }
 function guestRecv(d) {
   if (!d || typeof d !== 'object') return;
-  if (d.t === 'lobby') { const prev = NET.players.length; const wasIn = NET.players.some(p => p.id === NET.myId); NET.size = clamp(d.size | 0, 2, 4); NET.track = clamp(d.track | 0, 0, TRACKS.length - 1); NET.players = (d.players || []).slice(0, 4).map(p => ({ id: String(p.id), name: cleanName(p.name), spec: cleanSpec(p.spec), ready: !!p.ready })); const was = NET.countAt; NET.countAt = d.countAt > 0 ? performance.now() + Math.min(4000, d.countAt) : 0; lobbyUI(); netArrived(prev); if (NET.countAt && !was) tickCount(); if (!wasIn && NET.players.some(p => p.id === NET.myId)) netMsg('已加入房間！請按「開始比賽」顯示 READY'); }
-  else if (d.t === 'full') { netReset(); lobbyUI(); netMsg('這個房間已經滿了，或是比賽已經開始'); }
-  else if (d.t === 'closed') { NET.role = null; netReset(); lobbyUI(); netMsg('房主關閉了房間'); if (R && R.net && mode === 'race') banner('房主離開了', 2500); }
+  if (d.t === 'lobby') { NET.roomName = cleanName(d.room || ''); const prev = NET.players.length; const wasIn = NET.players.some(p => p.id === NET.myId); NET.size = clamp(d.size | 0, 2, 4); NET.track = clamp(d.track | 0, 0, TRACKS.length - 1); NET.players = (d.players || []).slice(0, 4).map(p => ({ id: String(p.id), name: cleanName(p.name), spec: cleanSpec(p.spec), ready: !!p.ready })); const was = NET.countAt; NET.countAt = d.countAt > 0 ? performance.now() + Math.min(4000, d.countAt) : 0; lobbyUI(); netArrived(prev); if (NET.countAt && !was) tickCount(); if (!wasIn && NET.players.some(p => p.id === NET.myId)) netMsg('已加入房間！請按「開始比賽」顯示 READY'); }
+  else if (d.t === 'full') { netReset(); lobbyUI(); netMsg('這個房間已經滿了，或是比賽已經開始'); browseStart(); }
+  else if (d.t === 'closed') { NET.role = null; netReset(); lobbyUI(); netMsg('房主關閉了房間'); if ($('#net').classList.contains('on')) browseStart(); if (R && R.net && mode === 'race') banner('房主離開了', 2500); }
   else if (d.t === 'start') {
     const ti = clamp(d.track | 0, 0, TRACKS.length - 1);
     const cfg = { laps: clamp(d.laps | 0, 1, 3), vmax: [150, 250, 350].includes(d.vmax) ? d.vmax : 350, ai: ['easy', 'pro', 'max'].includes(d.ai) ? d.ai : 'pro', aiType: TYPES.some(t => t.id === d.aiType) ? d.aiType : 'gt3', players: (d.players || []).slice(0, 4).map(p => ({ id: String(p.id), name: cleanName(p.name), spec: cleanSpec(p.spec) })) };
@@ -2080,6 +2124,12 @@ $('#tNet').onclick = () => { Audio.init(); openNet(); };
 try { if (window.top !== window) $('#tNet').style.display = 'none'; } catch (e) { $('#tNet').style.display = 'none'; }
 $('#netHost').onclick = () => netHost();
 $('#netJoin').onclick = () => netJoin();
+$('#netRooms').addEventListener('click', e => { const b = e.target.closest('[data-code]'); if (!b || b.disabled) return; Audio.init(); netJoin(b.dataset.code); });
+$('#netInvite').onclick = async () => {
+  const url = location.origin + location.pathname + '?room=' + NET.code;
+  try { await navigator.clipboard.writeText(url); netMsg('已複製邀請連結，貼到 LINE 傳給朋友！'); }
+  catch (e) { netMsg('邀請連結：' + url); }
+};
 $('#netCode').addEventListener('keydown', e => { if (e.key === 'Enter') netJoin(); });
 $('#netReady').onclick = () => {
   const me = NET.players.find(p => p.id === NET.myId); if (!me) return;
@@ -2088,9 +2138,10 @@ $('#netReady').onclick = () => {
   else if (NET.role === 'guest') { me.ready = v; lobbyUI(); sendHost({ t: 'ready', v }); }
 };
 $('#netTrack').addEventListener('change', () => { if (NET.role !== 'host') return; hostNext(clamp(+$('#netTrack').value | 0, 0, TRACKS.length - 1)); });
-$('#netClose').onclick = () => { if (!NET.role) netReset(); showOv('net', false); };
+$('#netClose').onclick = () => { if (!NET.role) netReset(); browseStop(); showOv('net', false); };
 $('#netHide').onclick = () => { showOv('net', false); netBadge(); };
-$('#netLeave').onclick = () => { netReset(); lobbyUI(); netMsg(''); };
+$('#netInvite').hidden = false;
+$('#netLeave').onclick = () => { netReset(); lobbyUI(); netMsg(''); browseStart(); };
 $('#netSize').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; NET.size = +b.dataset.n; store.set('roomSize', NET.size); lobbyUI(); });
 
 /* =========================================================
@@ -2128,6 +2179,13 @@ function frame(now) {
 const land = () => innerWidth > innerHeight;
 
 makeTextures(); buildGarageUI(); buildOpts(); refreshGarageCar(); resize();
+try {
+  const inv = new URLSearchParams(location.search).get('room');
+  if (/^\d{4}$/.test(inv || '') && window.top === window) {
+    show('tracks'); buildTrackGrid(); openNet(); $('#netCode').value = inv; $('.ncodebox').open = true;
+    netMsg('朋友邀請你加入房間 ' + inv + '！輸入名字後按「加入」'); $('#netName').focus();
+  }
+} catch (e) { }
 requestAnimationFrame(frame);
 window.__game = { sim(sec, bot){ for(let i=0;i<sec*30;i++){ if(bot){ const me=R.me, td=R.td, L=td.L, i0=Math.floor((((me.s%L)+L)%L)/td.ds)%td.N, j=(i0+Math.round(me.v*.25/td.ds))%td.N; const ym=Math.min(me.v/6, A_LAT/Math.max(me.v,1))||1; const pt=clamp(.04*me.d,-.3,.3); const st=clamp((-R.prof.ks[j]*me.v)/ym + (me.psi-pt)*2.5,-1,1); input.right=st>0?st:0; input.left=st<0?-st:0; const vt=R.prof.v[i0]; input.gas=me.v<vt*.99?1:0; input.brake=me.v>vt*1.04?1:0; } updateRace(1/30);} renderer.render(R.scene, raceCam); }, hideMap(w,h){ R.scene.traverse(o=>{ if(o.material&&o.material.map&&o.material.map.image&&o.material.map.image.width===w&&o.material.map.image.height===h) o.visible=false; }); }, probe(){ updateCamera(1,true); const rc=new THREE.Raycaster(); const out=[]; for(const y of [-.3,-.5,-.7,-.9]){ rc.setFromCamera(new THREE.Vector2(0,y),raceCam); const h=rc.intersectObjects(R.scene.children,true).slice(0,3).map(h=>[h.object.type,h.object.material&&h.object.material.map?h.object.material.map.image.width+'x'+h.object.material.map.image.height:'',h.distance.toFixed(1),h.point.y.toFixed(2)]); out.push(h);} return out; }, top(h,dx=0,dz=0){ paused=true; const g=R.me.built.group.position; raceCam.position.set(g.x+dx,g.y+h,g.z+dz+1); raceCam.lookAt(g.x+dx,g.y,g.z+dz); }, podium(t){ for(let i=0;i<t*30;i++) updatePodium(1/30); renderer.render(P.scene,P.cam); }, startRace, raceCam, buildGarageUI, refreshGarageCar, get R() { return R; }, sel, input };
 </script>
