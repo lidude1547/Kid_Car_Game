@@ -118,7 +118,7 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
 #mini{width:clamp(96px,17vw,150px);height:clamp(96px,17vw,150px);border-radius:16px;background:rgba(8,12,20,.6);border:1px solid var(--line)}
 .ib{pointer-events:auto;width:48px;height:48px;border-radius:14px;background:rgba(8,12,20,.72);border:1px solid var(--line);font-size:22px;display:grid;place-items:center}
 .ibs{display:flex;flex-direction:column;gap:8px}
-#hud{--sb:clamp(64px,17vmin,118px);--gw:clamp(78px,21vmin,140px);--gh:clamp(90px,25vmin,160px);--bb:clamp(60px,15vmin,100px);--hb:clamp(46px,11vmin,60px)}
+#hud{--joy:clamp(130px,34vmin,200px);--sb:clamp(64px,17vmin,118px);--gw:clamp(78px,21vmin,140px);--gh:clamp(90px,25vmin,160px);--bb:clamp(60px,15vmin,100px);--hb:clamp(46px,11vmin,60px)}
 #speedo{position:absolute;left:50%;bottom:calc(8px + env(safe-area-inset-bottom));transform:translateX(-50%);width:clamp(130px,30vmin,220px);text-align:center}
 @media (orientation:portrait){#speedo{bottom:calc(var(--gh) + 30px + env(safe-area-inset-bottom))}#hint{display:none}}
 @media (orientation:landscape) and (max-height:520px){#speedo{width:clamp(120px,32vmin,170px)}#hud .tr{gap:6px}.ib{width:42px;height:42px;font-size:19px}}
@@ -129,9 +129,12 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
 .cb{pointer-events:auto;position:absolute;bottom:calc(16px + env(safe-area-inset-bottom));border-radius:26px;font-weight:900;
   display:grid;place-items:center;color:#fff;border:3px solid rgba(255,255,255,.35);box-shadow:0 6px 0 rgba(0,0,0,.35)}
 .cb.on{transform:translateY(4px) scale(.97);box-shadow:0 2px 0 rgba(0,0,0,.35);filter:brightness(1.25)}
-#bL,#bR{width:var(--sb);height:var(--sb);background:rgba(47,128,255,.78);font-size:clamp(34px,6vw,52px)}
-#bL{left:calc(14px + env(safe-area-inset-left))}
-#bR{left:calc(var(--sb) + 26px + env(safe-area-inset-left))}
+#joy{pointer-events:auto;position:absolute;left:calc(16px + env(safe-area-inset-left));bottom:calc(14px + env(safe-area-inset-bottom));width:var(--joy);height:var(--joy);border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,rgba(47,128,255,.25),rgba(20,40,90,.55) 70%);border:4px solid rgba(255,255,255,.45);box-shadow:0 6px 18px rgba(0,0,0,.4),inset 0 0 24px rgba(0,0,0,.35);touch-action:none}
+#joy .ja{position:absolute;font-style:normal;font-weight:900;color:rgba(255,255,255,.55);font-size:calc(var(--joy) * .13);line-height:1;pointer-events:none}
+.ja-l{left:9%;top:50%;transform:translateY(-50%)}.ja-r{right:9%;top:50%;transform:translateY(-50%)}.ja-u{top:7%;left:50%;transform:translateX(-50%)}.ja-d{bottom:7%;left:50%;transform:translateX(-50%)}
+#joyKnob{position:absolute;left:50%;top:50%;width:44%;height:44%;margin:-22% 0 0 -22%;border-radius:50%;background:radial-gradient(circle at 35% 30%,#7fb2ff,#2f6fe0 60%,#1d4fae);border:3px solid #fff;box-shadow:0 6px 12px rgba(0,0,0,.45);pointer-events:none;transition:transform .08s}
+#joy.on #joyKnob{transition:none}
 #bGas{right:calc(14px + env(safe-area-inset-right));width:var(--gw);height:var(--gh);background:linear-gradient(180deg,#34d368,#15803d);font-size:clamp(18px,5vmin,28px);white-space:nowrap}
 #bBrake{right:calc(var(--gw) + 26px + env(safe-area-inset-right));width:var(--bb);height:var(--bb);background:linear-gradient(180deg,#ff5a52,#c1121f);font-size:clamp(14px,4vmin,22px);white-space:nowrap}
 #bHorn{right:calc(14px + env(safe-area-inset-right));bottom:calc(var(--gh) + 30px + env(safe-area-inset-bottom));width:var(--hb);height:var(--hb);background:rgba(255,212,0,.85);font-size:28px;border-radius:50%}
@@ -149,6 +152,7 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
 /* ---------- OVERLAYS ---------- */
 .ov{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(5,8,14,.55);backdrop-filter:blur(3px);padding:16px}
 .ov.on{display:flex}
+#crash{z-index:70}
 #result.low{align-items:flex-end;background:linear-gradient(180deg,transparent 45%,rgba(5,8,14,.55));backdrop-filter:none}
 #result.low .box{max-width:520px}
 @media (orientation:landscape){#result.low{justify-content:flex-end;align-items:center;background:linear-gradient(90deg,transparent 50%,rgba(5,8,14,.55))}#result.low .box{max-width:min(380px,42vw)}#result.low .btns .btn{padding:10px 12px;font-size:16px}}
@@ -202,6 +206,10 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
 .nroom b{font-size:18px;font-weight:900}.nroom span{grid-column:1;color:var(--muted);font-weight:700;font-size:13px}.nroom em{grid-row:1/3;grid-column:2;font-style:normal;font-weight:900;background:#16a34a;color:#fff;border-radius:12px;padding:8px 12px}
 .nroom:disabled{opacity:.5;border-color:var(--line);background:var(--panel2)}
 .ncodebox{margin:8px 0 4px;color:var(--muted);font-weight:700}.ncodebox summary{cursor:pointer;padding:6px 0}
+.npw{text-align:center;font-weight:900;font-size:16px;background:var(--panel2);border-radius:14px;padding:8px 10px;margin:4px 0 8px}.npw b{font-size:28px;letter-spacing:6px;color:#9ef0b0;margin:0 8px;vertical-align:middle}
+.pwbtn{background:rgba(255,255,255,.12);border-radius:10px;padding:6px 10px;font-weight:900;font-size:14px;vertical-align:middle}
+.nrow input[type=password]{letter-spacing:4px}
+#netPwBox{background:rgba(255,212,0,.1);border:2px solid rgba(255,212,0,.5);border-radius:16px;padding:10px;margin-bottom:8px}
 .nmsg{min-height:20px;text-align:center;font-weight:700;color:var(--yellow);margin-top:8px}
 #err{position:fixed;inset:0;display:none;z-index:99;align-items:center;justify-content:center;text-align:center;padding:24px;font-size:18px}
 </style>
@@ -240,6 +248,7 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
 <!-- TRACKS -->
 <div id="tracks" class="screen">
   <div class="top">
+    <button class="pill" id="tHome">🏠</button>
     <button class="pill" id="tBack">⬅ 換車</button>
     <h2>🏁 選一條賽道</h2>
     <button class="pill go" id="tNet">👥 連線對戰</button>
@@ -267,6 +276,7 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
       <button class="ib" id="bPause" aria-label="暫停">⏸</button>
       <button class="ib" id="bCam" aria-label="換視角">🎥</button>
       <button class="ib" id="bSnd" aria-label="聲音">🔊</button>
+      <button class="ib" id="bHome" aria-label="回主頁">🏠</button>
     </div>
   </div>
   <div id="speedo">
@@ -279,8 +289,7 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
   </div>
   <div id="hint"></div>
   <div id="ctrl">
-    <button class="cb" id="bL" aria-label="左">◀</button>
-    <button class="cb" id="bR" aria-label="右">▶</button>
+    <div id="joy" aria-label="方向搖桿"><i class="ja ja-l">◀</i><i class="ja ja-r">▶</i><i class="ja ja-u">▲</i><i class="ja ja-d">▼</i><div id="joyKnob"></div></div>
     <button class="cb" id="bBrake">煞車</button>
     <button class="cb" id="bGas">油門</button>
     <button class="cb" id="bHorn" aria-label="喇叭">📯</button>
@@ -322,8 +331,13 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
     <label class="nl">你的名字（中文、英文都可以）<input id="netName" maxlength="12" autocomplete="off" placeholder="例如：小明、Edison"></label>
     <div class="nl" style="margin-bottom:6px">👇 點一下朋友的房間就能加入</div>
     <div id="netRooms"></div>
+    <div id="netPwBox" hidden>
+      <div class="nl" id="netPwTitle" style="margin:4px 0 6px"></div>
+      <div class="nrow"><input id="netPwIn" type="password" inputmode="numeric" maxlength="4" placeholder="輸入房主給你的 4 位數密碼" autocomplete="off"><button class="btn go" id="netPwGo">加入</button></div>
+      <button class="btn wide" id="netPwCancel" style="margin-top:8px;font-size:15px;padding:8px">取消</button>
+    </div>
     <div class="ncodebox"><div class="nl" style="margin:10px 0 6px">或輸入房號加入</div>
-      <div class="nrow"><input id="netCode" inputmode="numeric" maxlength="4" placeholder="房號 4 位數" autocomplete="off"><button class="btn go" id="netJoin">加入</button></div>
+      <div class="nrow"><input id="netCode" inputmode="numeric" maxlength="4" placeholder="房號" autocomplete="off"><input id="netJoinPw" type="password" inputmode="numeric" maxlength="4" placeholder="房間密碼" autocomplete="off"><button class="btn go" id="netJoin">加入</button></div>
     </div>
     <div class="nor">── 我要當房主 ──</div>
     <label class="nl">房間名稱（朋友會在清單看到這個名字）<input id="netRoomName" maxlength="12" autocomplete="off" placeholder="例如：閃電車隊、Shawn Racing"></label>
@@ -334,7 +348,9 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
   </div>
   <div id="netLobby" hidden>
     <div class="ncode"><span id="netRoomShow" style="display:block;font-size:22px;margin-bottom:4px"></span>房號 <b class="num" id="netCodeShow">----</b></div>
-    <div class="nhint" id="netHint">朋友打開遊戲按「連線對戰」，就會在清單看到你的房間；也可以傳邀請連結給他</div>
+    <div class="npw" id="netPwRow" hidden>房間密碼 <b class="num" id="netPwShow">••••</b><button class="pwbtn" id="netPwEye">👁 顯示</button>
+      <div class="nhint" style="margin:4px 0 0">密碼只由房主告訴要一起玩的朋友，朋友要輸入密碼才能進來</div></div>
+    <div class="nhint" id="netHint">朋友按「連線對戰」會在清單看到你的房間，點進來要輸入你告訴他的密碼</div>
     <button class="btn wide" id="netInvite" style="margin-bottom:8px">📋 複製邀請連結</button>
     <div id="netPlayers"></div>
     <div id="netHostCtl">
@@ -352,7 +368,9 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
     <button class="btn wide" id="netClose">⬅ 返回</button>
   </div>
 </div></div>
-<div id="rot"><div class="phone">📱</div><h2>請把手機橫過來</h2><p>橫著拿才能開賽車喔！轉過來就會繼續。</p></div>
+<div id="rot"><div class="phone">📱</div><h2>請把手機橫過來</h2><p>橫著拿才能開賽車喔！轉過來就會繼續。</p><button class="btn" id="rotHome" style="margin-top:14px">🏠 回主頁</button></div>
+<div id="crash" class="ov"><div class="box"><div class="big">🛠️</div><h2>畫面出了點問題</h2><div class="info">可以回到主頁重新開始，或重新載入遊戲。</div>
+  <div class="btns"><button class="btn go" id="cHome">🏠 回主頁</button><button class="btn" id="cReload">🔄 重新載入</button></div></div></div>
 <div id="err">😢 這台裝置沒辦法顯示 3D 畫面（WebGL）。<br>請換用新版 Chrome / Safari / Edge 試試看。</div>
 
 <script type="module">
@@ -1480,7 +1498,7 @@ function buildRace(ti, env = {}) {
 const raceCam = new THREE.PerspectiveCamera(62, 1, .3, 9000);
 let mode = 'menu'; // menu | race
 let camMode = store.get('cam', 0);
-const input = { left: 0, right: 0, gas: 0, brake: 0, tilt: 0 };
+const input = { left: 0, right: 0, gas: 0, brake: 0, tilt: 0, jx: 0, jy: 0 };
 let paused = false;
 
 function startRace(ti, net = null) {
@@ -1542,11 +1560,10 @@ function startRace(ti, net = null) {
   }, 60);
 }
 function updateCtrlVisibility() {
-  $('#bL').style.display = $('#bR').style.display = sel.steer === 'tilt' ? 'none' : '';
   $('#bGas').style.display = sel.gas === 'auto' ? 'none' : '';
   $('#bBrake').style.right = sel.gas === 'auto' ? 'calc(14px + env(safe-area-inset-right))' : '';
   $('#bHorn').style.bottom = sel.gas === 'auto' ? 'calc(var(--bb) + 30px + env(safe-area-inset-bottom))' : '';
-  $('#hint').textContent = isTouch ? '' : '⌨️ ←→ 轉彎　↑ 油門　↓ 煞車　空白鍵 喇叭　C 換視角　P 暫停';
+  $('#hint').textContent = isTouch ? '' : '⌨️ ←→ 轉彎　↑ 油門　↓ 煞車　空白鍵 喇叭　C 換視角　P 暫停　H 回主頁';
 }
 function lightsDom(n) { document.querySelectorAll('#lights i').forEach((e, i) => e.classList.toggle('on', i < n)); }
 let bannerTO;
@@ -1610,7 +1627,7 @@ function updatePrecip(dt) {
   }
   P_.o.geometry.attributes.position.needsUpdate = true;
 }
-function steerInput() { return clamp(input.right - input.left, -1, 1); }
+function steerInput() { const jx = Math.abs(input.jx) < .1 ? 0 : (input.jx - Math.sign(input.jx) * .1) / .9; return clamp(input.right - input.left + jx, -1, 1); }
 function updateRace(dt) {
   const td = R.td, L = td.L, me = R.me;
   R.phaseT += dt;
@@ -1628,9 +1645,9 @@ function updateRace(dt) {
   // player
   const iMe = Math.floor((((me.s % L) + L) % L) / td.ds) % td.N;
   if (R.phase === 'race') {
-    const gas = input.gas;
+    const gas = input.gas || input.jy > .35;
     let a = gas ? accelAt(me.v, R.vmax) : -2 - .0018 * me.v * me.v;
-    if (input.brake) a = -32;
+    if (input.brake || input.jy < -.45) a = -32;
     const offroad = Math.abs(me.d) > R.HW + 1.4;
     if (offroad && me.v > 20) a = Math.min(a, -16);
     me.v = clamp(me.v + a * dt, 0, R.vmax);
@@ -2011,6 +2028,15 @@ $('#gBack').onclick = () => show('home');
 $('#gNext').onclick = () => { Audio.beep(700, .08); toMenu('tracks'); };
 $('#tBack').onclick = () => show('garage');
 $('#bPause').onclick = () => setPause(true);
+$('#bHome').onclick = () => goHome();
+$('#tHome').onclick = () => goHome();
+$('#cHome').onclick = () => goHome();
+$('#cReload').onclick = () => location.reload();
+$('#rotHome').onclick = () => goHome();
+canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); showOv('crash', true); });
+canvas.addEventListener('webglcontextrestored', () => { showOv('crash', false); goHome(); });
+let crashCount = 0;
+addEventListener('error', () => { if (++crashCount >= 3) showOv('crash', true); });
 $('#pResume').onclick = () => setPause(false);
 $('#pRestart').onclick = () => startRace(sel.track);
 $('#pTracks').onclick = () => toMenu('tracks');
@@ -2022,6 +2048,15 @@ $('#rGarage').onclick = () => toMenu('garage');
 $('#bCam').onclick = () => { camMode = (camMode + 1) % 3; store.set('cam', camMode); };
 const sndBtn = $('#bSnd'); const sndIcon = () => sndBtn.textContent = Audio.on ? '🔊' : '🔇'; sndIcon();
 sndBtn.onclick = () => { Audio.init(); Audio.setOn(!Audio.on); sndIcon(); };
+function goHome() {
+  paused = false; mode = 'menu';
+  ['pause', 'result', 'loading', 'crash', 'net'].forEach(id => showOv(id, false));
+  input.left = input.right = input.gas = input.brake = input.jx = input.jy = 0;
+  if (Audio.ctx) Audio.engine(0, 1, false);
+  try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => { }); } catch (e) { }
+  renderer.toneMappingExposure = 1.0; $('#rot').classList.remove('on'); rotShown = false;
+  show('home'); resize();
+}
 function setPause(p) { if (mode !== 'race' || (R && (R.phase === 'done' || R.net))) return; paused = p; showOv('pause', p); if (Audio.ctx) Audio.engine(0, 1, false); }
 function goFull() {
   if (!isTouch) return;
@@ -2041,7 +2076,20 @@ function hold(id, key) {
   const off = e => { input[key] = 0; el.classList.remove('on'); };
   el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointerleave', off); el.addEventListener('pointercancel', off);
 }
-hold('#bL', 'left'); hold('#bR', 'right'); hold('#bGas', 'gas'); hold('#bBrake', 'brake'); hold('#bHorn', 'horn');
+(function joystick() {
+  const el = $('#joy'), knob = $('#joyKnob'); let id = null;
+  const set = e => {
+    const r = el.getBoundingClientRect(), R0 = r.width / 2, cx = r.left + R0, cy = r.top + R0;
+    let dx = e.clientX - cx, dy = e.clientY - cy; const d = Math.hypot(dx, dy), max = R0 * .62;
+    if (d > max) { dx *= max / d; dy *= max / d; }
+    knob.style.transform = `translate(${dx}px,${dy}px)`; input.jx = dx / max; input.jy = -dy / max;
+  };
+  const end = e => { if (e.pointerId !== id) return; id = null; el.classList.remove('on'); knob.style.transform = ''; input.jx = input.jy = 0; };
+  el.addEventListener('pointerdown', e => { e.preventDefault(); id = e.pointerId; try { el.setPointerCapture(id); } catch (er) { } el.classList.add('on'); Audio.init(); set(e); });
+  el.addEventListener('pointermove', e => { if (e.pointerId === id) set(e); });
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); el.addEventListener('lostpointercapture', end);
+})();
+hold('#bGas', 'gas'); hold('#bBrake', 'brake'); hold('#bHorn', 'horn');
 const KEYS = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'gas', KeyW: 'gas', ArrowDown: 'brake', KeyS: 'brake' };
 addEventListener('keydown', e => {
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) { if (e.target.id === 'netPw' && e.key === 'Enter') netHost(); return; }
@@ -2050,6 +2098,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Space') { Audio.horn(); e.preventDefault(); }
   if (e.code === 'KeyC') camMode = (camMode + 1) % 3;
   if (e.code === 'KeyP' || e.code === 'Escape') setPause(!paused);
+  if (e.code === 'KeyH') goHome();
 });
 addEventListener('keyup', e => { if (KEYS[e.code]) input[KEYS[e.code]] = 0; });
 addEventListener('contextmenu', e => e.preventDefault());
@@ -2061,7 +2110,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) setPa
    ========================================================= */
 const NET = { mq: null, role: null, code: null, myId: null, players: [], seen: new Map(), hb: null, lastHb: 0, lastHost: 0, sendT: 0, name: store.get('nick', ''), roomName: store.get('roomName', ''), size: clamp(store.get('roomSize', 2) | 0, 2, 4), track: 0, countT: null, countAt: 0, pendingNext: null };
 const BROKERS = window.__BROKERS || ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081'];
-const TOP = code => 'kidcar-lidude1547/v2/' + code;
+const TOP = code => 'kidcar-lidude1547/v3/' + code;
 const MQTT_LIBS = ['https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js', 'https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js', 'https://cdn.jsdelivr.net/npm/mqtt@5.3.5/dist/mqtt.min.js'];
 async function loadMqtt() {
   for (const src of MQTT_LIBS) {
@@ -2098,8 +2147,12 @@ async function browseStart() {
   if (!c) { BROWSE.on = false; $('#netRooms').innerHTML = '<div class="nhint">連不到連線伺服器，請確認網路</div>'; return; }
   BROWSE.c = c;
   c.on('message', (t, buf) => {
-    if (BROWSE.c !== c) return; const m = t.match(/\/v2\/(\d{4})\/room$/); if (!m) return;
-    const str = buf ? buf.toString() : ''; if (!str) BROWSE.rooms.delete(m[1]); else { try { BROWSE.rooms.set(m[1], JSON.parse(str)); } catch (e) { } }
+    if (BROWSE.c !== c) return; const m = t.match(/\/v3\/(\d{4})\/room$/); if (!m) return;
+    const str = buf ? buf.toString() : ''; if (!str) { BROWSE.rooms.delete(m[1]); renderRooms(); return; }
+    let r; try { r = JSON.parse(str); } catch (e) { return; }
+    const age = Date.now() - (r.ts || 0);
+    if (age > 30 * 60 * 1000) { try { c.publish(t, '', { qos: 1, retain: true }); } catch (e) { } BROWSE.rooms.delete(m[1]); }   // long-dead room: delete it
+    else { r.seenAt = age < 20000 ? Date.now() : 0; BROWSE.rooms.set(m[1], r); }
     renderRooms();
   });
   c.subscribe(TOP('+') + '/room', { qos: 1 });
@@ -2110,10 +2163,10 @@ function renderRooms() {
   const el = $('#netRooms'); if (!el) return;
   if (!BROWSE.c) { el.innerHTML = '<div class="nhint">尋找房間中…</div>'; return; }
   const now = Date.now();
-  const list = [...BROWSE.rooms.entries()].filter(([, r]) => r && now - (r.ts || 0) < 10 * 60 * 1000).sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0)).slice(0, 12);
+  const list = [...BROWSE.rooms.entries()].filter(([, r]) => r && now - (r.seenAt || 0) < 15000).sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0)).slice(0, 12);
   el.innerHTML = list.length ? list.map(([code, r]) => {
     const size = clamp(r.size | 0, 2, 4), n = clamp(r.n | 0 || 1, 1, 4), full = n >= size || r.racing;
-    return `<button class="nroom" data-code="${code}" ${full ? 'disabled' : ''}><b>🏁 ${cleanName(r.room || r.host)}</b><span>${n} / ${size} 人${r.racing ? '・比賽中' : full ? '・已滿' : '・房號 ' + code}</span><em>${r.racing ? '比賽中' : full ? '已滿' : '加入 ➜'}</em></button>`;
+    return `<button class="nroom" data-code="${code}" ${full ? 'disabled' : ''}><b>🏁 ${cleanName(r.room || r.host)}</b><span>${n} / ${size} 人${r.racing ? '・比賽中' : full ? '・已滿' : '・🔒 需要密碼'}</span><em>${r.racing ? '比賽中' : full ? '已滿' : '加入 ➜'}</em></button>`;
   }).join('') : '<div class="nhint">現在沒有開著的房間。請房主先開房間，開好後這裡會自動出現。</div>';
 }
 function sendHost(m) { if (!NET.mq || !NET.code) return; m.from = NET.myId; try { NET.mq.publish(TOP(NET.code) + '/h', JSON.stringify(m), { qos: m.t === 'st' || m.t === 'hb' ? 0 : 1 }); } catch (e) { } }
@@ -2143,7 +2196,8 @@ function lobbyUI() {
   document.querySelectorAll('#netSize button').forEach(b => b.classList.toggle('sel', +b.dataset.n === NET.size));
   netBadge();
   if (!inRoom) return;
-  $('#netCodeShow').textContent = NET.code; $('#netRoomShow').textContent = NET.roomName ? '🏁 ' + NET.roomName : '';
+  $('#netCodeShow').textContent = NET.code;
+  $('#netPwRow').hidden = NET.role !== 'host'; if (NET.role === 'host') { $('#netPwShow').textContent = NET.pwShown ? NET.pw : '••••'; $('#netPwEye').textContent = NET.pwShown ? '🙈 隱藏' : '👁 顯示'; } $('#netRoomShow').textContent = NET.roomName ? '🏁 ' + NET.roomName : '';
   const n = NET.players.length, need = NET.size - n;
   let html = NET.players.map((p, i) => `<div class="np"><i style="background:${cleanSpec(p.spec)[1]}"></i>${cleanName(p.name)}${p.id === NET.myId ? '（你）' : ''}<span class="rd ${p.ready ? 'on' : ''}">${p.ready ? '✅ READY' : '等待中…'}</span><small>${i === 0 ? '房主' : '玩家 ' + (i + 1)}</small></div>`).join('');
   for (let i = n; i < NET.size; i++) html += `<div class="np empty"><i style="background:transparent"></i>等待玩家加入…<small>玩家 ${i + 1}</small></div>`;
@@ -2187,15 +2241,16 @@ async function netHost() {
   try { await loadMqtt(); } catch (e) { return netMsg('連線元件載入失敗，請確認有網路'); }
   netReset(); browseStop();
   let client = null;
-  for (const u of BROKERS) { try { client = await mqConnect(u, { clientId: 'kidcar_h' + Math.random().toString(36).slice(2, 10), clean: false }); break; } catch (e) { } }
+  const code0 = [0, 0, 0, 0, 0, 0].map(() => String(Math.floor(1000 + Math.random() * 9000)));
+  for (const u of BROKERS) { try { client = await mqConnect(u, { clientId: 'kidcar_h' + Math.random().toString(36).slice(2, 10), clean: false, will: { topic: TOP(code0[0]) + '/room', payload: '', qos: 1, retain: true } }); break; } catch (e) { } }
   if (!client) return netMsg('連不到連線伺服器，請確認網路後再試一次');
   let code = null;
-  for (let i = 0; i < 6 && !code; i++) {
-    const c = String(Math.floor(1000 + Math.random() * 9000)); const r = await retainedGet(client, TOP(c) + '/room', 1200);
+  for (let i = 0; i < 1 && !code; i++) {
+    const c = code0[0]; const r = await retainedGet(client, TOP(c) + '/room', 1200);
     if (!r || Date.now() - (r.ts || 0) > 30 * 60 * 1000) code = c;
   }
   if (!code) { try { client.end(true); } catch (e) { } return netMsg('開房間失敗，請再試一次'); }
-  NET.mq = client; NET.role = 'host'; NET.code = code; NET.myId = 'host'; NET.seen = new Map(); NET.lastHb = Date.now();
+  NET.mq = client; NET.role = 'host'; NET.code = code; NET.myId = 'host'; NET.seen = new Map(); NET.lastHb = Date.now(); NET.pw = String(Math.floor(1000 + Math.random() * 9000)); NET.pwShown = false;
   NET.track = sel.track; NET.players = [{ id: 'host', name: NET.name, spec: mySpec(), ready: false }];
   client.on('message', (t, buf) => { if (t !== TOP(code) + '/h') return; let d; try { d = JSON.parse(buf.toString()); } catch (e) { return; } hostRecv(d); });
   client.subscribe(TOP(code) + '/h', { qos: 1 });
@@ -2248,6 +2303,7 @@ function hostRecv(d) {
   if (d.t === 'ready') { const p = NET.players.find(p => p.id === id); if (p) { p.ready = !!d.v; hostLobby(); } return; }
   if (d.t === 'hello') {
     const prev = NET.players.length, ex = NET.players.find(p => p.id === id);
+    if (!ex && String(d.pw || '') !== NET.pw) { netBroadcast({ t: 'badpw', to: id }); return; }
     if (ex) { ex.name = cleanName(d.name); ex.spec = cleanSpec(d.spec); hostLobby(); return; }
     if (NET.players.length >= NET.size || (R && R.net && mode === 'race')) { netBroadcast({ t: 'full', to: id }); return; }
     NET.players.push({ id, name: cleanName(d.name), spec: cleanSpec(d.spec), ready: false });
@@ -2260,10 +2316,13 @@ function dropPlayer(id) {
   if (R && R.net) { const c = R.cars.find(c => c.remote === id); if (c) { c.gone = true; c.built.group.visible = false; c.s = -1e6; } }
   netBroadcast({ t: 'left', id }); hostLobby();
 }
-async function netJoin(codeArg) {
+async function netJoin(codeArg, pwArg) {
   saveName();
   const code = String(codeArg || $('#netCode').value).replace(/\D/g, '');
+  const pw = String(pwArg != null ? pwArg : $('#netJoinPw').value).replace(/\D/g, '');
   if (code.length !== 4) return netMsg('請在上面的清單點朋友的房間，或輸入 4 位數房號');
+  if (pw.length !== 4) return netMsg('請輸入房主告訴你的 4 位數房間密碼');
+  $('#netPwBox').hidden = true;
   netMsg('加入房間中…'); browseStop();
   try { await loadMqtt(); } catch (e) { return netMsg('連線元件載入失敗，請確認有網路'); }
   netReset();
@@ -2284,7 +2343,7 @@ async function netJoin(codeArg) {
     if (d.to && d.to !== NET.myId) return; NET.lastHost = Date.now(); guestRecv(d);
   });
   found.subscribe(TOP(code) + '/a', { qos: 1 });
-  const hello = () => sendHost({ t: 'hello', name: NET.name, spec: mySpec() });
+  const hello = () => sendHost({ t: 'hello', name: NET.name, spec: mySpec(), pw });
   hello(); found.on('connect', () => { if (NET.mq === found) hello(); });
   NET.hb = setInterval(() => {
     if (NET.role !== 'guest') return;
@@ -2297,6 +2356,7 @@ function guestRecv(d) {
   if (!d || typeof d !== 'object') return;
   if (d.t === 'lobby') { NET.roomName = cleanName(d.room || ''); const prev = NET.players.length; const wasIn = NET.players.some(p => p.id === NET.myId); NET.size = clamp(d.size | 0, 2, 4); NET.track = clamp(d.track | 0, 0, TRACKS.length - 1); NET.players = (d.players || []).slice(0, 4).map(p => ({ id: String(p.id), name: cleanName(p.name), spec: cleanSpec(p.spec), ready: !!p.ready })); const was = NET.countAt; NET.countAt = d.countAt > 0 ? performance.now() + Math.min(4000, d.countAt) : 0; lobbyUI(); netArrived(prev); if (NET.countAt && !was) tickCount(); if (!wasIn && NET.players.some(p => p.id === NET.myId)) netMsg('已加入房間！請按「開始比賽」顯示 READY'); }
   else if (d.t === 'full') { netReset(); lobbyUI(); netMsg('這個房間已經滿了，或是比賽已經開始'); browseStart(); }
+  else if (d.t === 'badpw') { netReset(); lobbyUI(); netMsg('密碼不對喔！請向房主確認房間密碼'); browseStart(); Audio.beep(220, .25); }
   else if (d.t === 'closed') { NET.role = null; netReset(); lobbyUI(); netMsg('房主關閉了房間'); if ($('#net').classList.contains('on')) browseStart(); if (R && R.net && mode === 'race') banner('房主離開了', 2500); }
   else if (d.t === 'start') {
     const ti = clamp(d.track | 0, 0, TRACKS.length - 1);
@@ -2355,13 +2415,22 @@ $('#tNet').onclick = () => { Audio.init(); openNet(); };
 try { if (window.top !== window) $('#tNet').style.display = 'none'; } catch (e) { $('#tNet').style.display = 'none'; }
 $('#netHost').onclick = () => netHost();
 $('#netJoin').onclick = () => netJoin();
-$('#netRooms').addEventListener('click', e => { const b = e.target.closest('[data-code]'); if (!b || b.disabled) return; Audio.init(); netJoin(b.dataset.code); });
+$('#netRooms').addEventListener('click', e => {
+  const b = e.target.closest('[data-code]'); if (!b || b.disabled) return; Audio.init();
+  NET.pickCode = b.dataset.code; $('#netPwTitle').textContent = '加入「' + b.querySelector('b').textContent.replace('🏁 ', '') + '」：請輸入房主給你的密碼';
+  $('#netPwIn').value = ''; $('#netPwBox').hidden = false; $('#netPwIn').focus();
+});
+$('#netPwGo').onclick = () => netJoin(NET.pickCode, $('#netPwIn').value);
+$('#netPwIn').addEventListener('keydown', e => { if (e.key === 'Enter') netJoin(NET.pickCode, $('#netPwIn').value); });
+$('#netPwCancel').onclick = () => { $('#netPwBox').hidden = true; };
+addEventListener('pagehide', () => { try { if (NET.role === 'host' && NET.mq) { NET.mq.publish(TOP(NET.code) + '/room', '', { qos: 1, retain: true }); netBroadcast({ t: 'closed' }); } else if (NET.role === 'guest') sendHost({ t: 'bye' }); } catch (e) { } });
+$('#netPwEye').onclick = () => { NET.pwShown = !NET.pwShown; lobbyUI(); };
 $('#netInvite').onclick = async () => {
   const url = location.origin + location.pathname + '?room=' + NET.code;
-  try { await navigator.clipboard.writeText(url); netMsg('已複製邀請連結，貼到 LINE 傳給朋友！'); }
+  try { await navigator.clipboard.writeText('一起來玩小小賽車手！房間「' + NET.roomName + '」 ' + url + '（密碼另外告訴你）'); netMsg('已複製邀請連結（不含密碼），密碼請你另外告訴朋友'); }
   catch (e) { netMsg('邀請連結：' + url); }
 };
-$('#netCode').addEventListener('keydown', e => { if (e.key === 'Enter') netJoin(); });
+$('#netJoinPw').addEventListener('keydown', e => { if (e.key === 'Enter') netJoin(); });
 $('#netReady').onclick = () => {
   const me = NET.players.find(p => p.id === NET.myId); if (!me) return;
   const v = !me.ready; Audio.beep(v ? 880 : 440, .1);
@@ -2393,7 +2462,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   const needRot = isTouch && mode === 'race' && innerHeight > innerWidth;
-  if (needRot !== rotShown) { rotShown = needRot; $('#rot').classList.toggle('on', needRot); if (needRot && Audio.ctx) Audio.engine(0, 1, false); if (needRot) { input.left = input.right = input.gas = input.brake = 0; } }
+  if (needRot !== rotShown) { rotShown = needRot; $('#rot').classList.toggle('on', needRot); if (needRot && Audio.ctx) Audio.engine(0, 1, false); if (needRot) { input.left = input.right = input.gas = input.brake = input.jx = input.jy = 0; } }
   if (mode === 'race' && R) {
     if (!paused && (!needRot || R.net)) updateRace(dt);
     renderer.render(R.scene, raceCam);
@@ -2414,7 +2483,7 @@ try {
   const inv = new URLSearchParams(location.search).get('room');
   if (/^\d{4}$/.test(inv || '') && window.top === window) {
     show('tracks'); buildTrackGrid(); openNet(); $('#netCode').value = inv;
-    netMsg('朋友邀請你加入房間 ' + inv + '！輸入名字後按「加入」'); $('#netName').focus();
+    netMsg('朋友邀請你加入房間 ' + inv + '！輸入名字和房主給你的密碼，再按「加入」'); $('#netName').focus();
   }
 } catch (e) { }
 requestAnimationFrame(frame);
