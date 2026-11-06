@@ -126,11 +126,11 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjus
 #hud .tr{position:absolute;right:calc(12px + env(safe-area-inset-right));top:calc(10px + env(safe-area-inset-top));display:flex;gap:8px;align-items:flex-start}
 #mini{width:clamp(96px,17vw,150px);height:clamp(96px,17vw,150px);border-radius:16px;background:rgba(8,12,20,.6);border:1px solid var(--line)}
 .ib{pointer-events:auto;width:48px;height:48px;border-radius:14px;background:rgba(8,12,20,.72);border:1px solid var(--line);font-size:22px;display:grid;place-items:center}
-.ibs{display:flex;flex-direction:column;gap:8px}
+.ibs{display:grid;grid-template-columns:repeat(2,auto);grid-auto-flow:row;gap:6px;align-content:start}
 #hud{--joy:clamp(130px,34vmin,200px);--sb:clamp(64px,17vmin,118px);--gw:clamp(78px,21vmin,140px);--gh:clamp(90px,25vmin,160px);--bb:clamp(60px,15vmin,100px);--hb:clamp(46px,11vmin,60px)}
 #speedo{position:absolute;left:50%;bottom:calc(8px + env(safe-area-inset-bottom));transform:translateX(-50%);width:clamp(130px,30vmin,220px);text-align:center}
 @media (orientation:portrait){#speedo{bottom:calc(var(--gh) + 30px + env(safe-area-inset-bottom))}#hint{display:none}}
-@media (orientation:landscape) and (max-height:520px){#speedo{width:clamp(120px,32vmin,170px)}#hud .tr{gap:6px}.ib{width:42px;height:42px;font-size:19px}}
+@media (orientation:landscape) and (max-height:520px){#speedo{width:clamp(120px,32vmin,170px)}#hud .tr{gap:6px}.ib{width:40px;height:40px;font-size:18px;border-radius:12px}#mini{width:clamp(90px,15vw,128px);height:clamp(90px,15vw,128px)}}
 #speedo svg{width:100%;display:block}
 #spd{position:absolute;left:0;right:0;top:36%;font-size:clamp(30px,8vmin,58px);font-weight:800;line-height:1;text-shadow:0 3px 10px rgba(0,0,0,.6)}
 #spdU{position:absolute;left:0;right:0;top:72%;font-size:13px;font-weight:900;color:var(--muted)}
@@ -180,6 +180,9 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjus
 #loading .box{max-width:320px}
 .spin{width:64px;height:64px;margin:0 auto 12px;border-radius:50%;border:8px solid rgba(255,255,255,.15);border-top-color:var(--yellow);animation:sp 1s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
+#fsHint{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:55;display:none;background:rgba(255,212,0,.92);color:#111;font-weight:900;border-radius:999px;padding:8px 18px;font-size:15px;pointer-events:none;box-shadow:0 6px 16px rgba(0,0,0,.4);animation:fsPulse 1.6s ease-in-out infinite}
+@keyframes fsPulse{50%{transform:translateX(-50%) scale(1.06)}}
+#fsHint.on{display:block}
 #rot{position:fixed;inset:0;z-index:60;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:var(--bg);text-align:center;padding:24px}
 #rot.on{display:flex}
 #rot .phone{font-size:96px;line-height:1;animation:turnphone 1.8s ease-in-out infinite}
@@ -381,6 +384,7 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjus
     <button class="btn wide" id="netClose">⬅ 返回</button>
   </div>
 </div></div>
+<div id="fsHint">👆 點一下畫面就會全螢幕</div>
 <div id="rot"><div class="phone">📱</div><h2>請把手機橫過來</h2><p>橫著拿才能開賽車喔！轉過來就會繼續。</p><button class="btn" id="rotHome" style="margin-top:14px">🏠 回主頁</button></div>
 <div id="crash" class="ov"><div class="box"><div class="big">🛠️</div><h2>畫面出了點問題</h2><div class="info">可以回到主頁重新開始，或重新載入遊戲。</div>
   <div class="btns"><button class="btn go" id="cHome">🏠 回主頁</button><button class="btn" id="cReload">🔄 重新載入</button></div></div></div>
@@ -1950,7 +1954,20 @@ const Audio = {
   },
   beep(f, d) { this.tone(f, d, 'sine', .35); },
   boing() { this.tone(300, .35, 'sine', .4, 90); },
-  horn() { this.tone(392, .35, 'square', .18); this.tone(494, .35, 'square', .14); },
+  horn(type = (R && R.me && mode === 'race') ? (R.me.spec[0]) : sel.type) {
+    if (!this.ctx) return;
+    const T = (f, d, w, v, at = 0, slide) => setTimeout(() => this.tone(f, d, w, v, slide), at * 1000);
+    switch (type) {
+      case 'f1': T(1175, .09, 'square', .14); T(1568, .09, 'square', .14, .11); T(1175, .09, 'square', .14, .22); break;          // quick electronic beeps
+      case 'gt3': T(392, .38, 'square', .16); T(494, .38, 'square', .13); break;                                                  // classic two-tone car horn
+      case 'hyper': T(523, .3, 'sawtooth', .12, 0, 784); T(659, .3, 'sawtooth', .1, 0, 988); T(784, .3, 'sawtooth', .08, 0, 1175); break; // rising supercar chord
+      case 'lmp': T(220, .7, 'sawtooth', .16); T(277, .7, 'sawtooth', .13); T(330, .7, 'sawtooth', .1); break;                     // big race air-horn
+      case 'rally': [659, 784, 880, 784, 659].forEach((f, i) => T(f, .11, 'triangle', .28, i * .12)); break;                     // playful toot-toot tune
+      case 'touring': T(165, .6, 'square', .17); T(208, .6, 'square', .15); break;                                                // deep truck-style horn
+      case 'kart': T(600, .14, 'triangle', .32, 0, 950); T(600, .14, 'triangle', .32, .2, 950); break;                            // squeaky clown honk-honk
+      default: T(392, .35, 'square', .18); T(494, .35, 'square', .14);
+    }
+  },
   fanfare() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.tone(f, .35, 'triangle', .35), i * 150)); setTimeout(() => this.tone(1047, .9, 'triangle', .3), 650); },
 };
 function say(text) {
@@ -1995,7 +2012,7 @@ function buildGarageUI() {
 }
 $('#gpanel').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
-  if (b.dataset.t) { sel.type = b.dataset.t; store.set('type', sel.type); }
+  if (b.dataset.t) { sel.type = b.dataset.t; store.set('type', sel.type); setTimeout(() => Audio.horn(sel.type), 120); }
   if (b.dataset.m) { sel.make = b.dataset.m; store.set('make', sel.make); const mk = MAKES.find(m => m.id === sel.make); if (mk && !COLORS.includes(sel.color) && !mk.sig.some(([c]) => c === sel.color)) { sel.color = mk.sig[0][0]; store.set('color', sel.color); } }
   if (b.dataset.c) { sel.color = b.dataset.c; store.set('color', sel.color); }
   if (b.dataset.b) { sel.brand = b.dataset.b; store.set('brand', sel.brand); }
@@ -2075,16 +2092,25 @@ function goHome() {
   show('home'); resize();
 }
 function setPause(p) { if (mode !== 'race' || (R && (R.phase === 'done' || R.net))) return; paused = p; showOv('pause', p); if (Audio.ctx) Audio.engine(0, 1, false); }
+function landscapeNow() { return innerWidth > innerHeight; }
+function armAutoFull() {
+  // browsers only allow full screen from a tap: the first tap anywhere while sideways turns it on
+  const tap = () => { if (landscapeNow() && !fsEl() && fsOK()) enterFull(false); };
+  document.addEventListener('pointerdown', tap, true);
+  const hint = () => { const h = $('#fsHint'); if (!h) return; h.classList.toggle('on', isTouch && landscapeNow() && !fsEl() && fsOK() && window.top === window); };
+  addEventListener('resize', hint); document.addEventListener('fullscreenchange', hint); document.addEventListener('webkitfullscreenchange', hint); setTimeout(hint, 500);
+}
 const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
 const fsOK = () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
 function lockLandscape() { try { const o = screen.orientation; if (o && o.lock) o.lock('landscape').catch(() => { }); } catch (e) { } }
+let fsPending = 0;
 function enterFull(explain) {
-  if (fsEl()) return;
+  if (fsEl() || performance.now() - fsPending < 1200) return;
   if (!fsOK()) { if (explain) { $('#installHelp').hidden = false; show('home'); } return; }
-  const el = document.documentElement;
+  const el = document.documentElement; fsPending = performance.now();
   try {
     const p = el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' }) : el.webkitRequestFullscreen ? el.webkitRequestFullscreen() : null;
-    if (p && p.then) p.then(lockLandscape).catch(() => { }); else lockLandscape();
+    if (p && p.then) p.then(() => { fsPending = 0; lockLandscape(); }).catch(() => { fsPending = 0; }); else lockLandscape();
   } catch (e) { }
 }
 function goFull() { if (isTouch) enterFull(false); }
@@ -2540,7 +2566,7 @@ $('#installTip').onclick = async () => {
   $('#installHelp').hidden = !$('#installHelp').hidden;
 };
 if (isIOS && !standalone && !fsOK() && window.top === window) { $('#installTip').hidden = false; $('#installTip').innerHTML = '📲 iPhone 全螢幕：點這裡看怎麼做'; }
-fsUI(); if (window.top !== window) { $('#fullTip').hidden = true; $('#bFull').style.display = 'none'; }
+armAutoFull(); fsUI(); if (window.top !== window) { $('#fullTip').hidden = true; $('#bFull').style.display = 'none'; }
 if ('serviceWorker' in navigator && location.protocol === 'https:' && window.top === window) navigator.serviceWorker.register('sw.js').catch(() => { });
 requestAnimationFrame(frame);
 window.__game = { sim(sec, bot){ for(let i=0;i<sec*30;i++){ if(bot){ const me=R.me, td=R.td, L=td.L, i0=Math.floor((((me.s%L)+L)%L)/td.ds)%td.N, j=(i0+Math.round(me.v*.25/td.ds))%td.N; const ym=Math.min(me.v/6, A_LAT/Math.max(me.v,1))||1; const pt=clamp(.04*me.d,-.3,.3); const st=clamp((-R.prof.ks[j]*me.v)/ym + (me.psi-pt)*2.5,-1,1); input.right=st>0?st:0; input.left=st<0?-st:0; const vt=R.prof.v[i0]; input.gas=me.v<vt*.99?1:0; input.brake=me.v>vt*1.04?1:0; } updateRace(1/30);} renderer.render(R.scene, raceCam); }, hideMap(w,h){ R.scene.traverse(o=>{ if(o.material&&o.material.map&&o.material.map.image&&o.material.map.image.width===w&&o.material.map.image.height===h) o.visible=false; }); }, probe(){ updateCamera(1,true); const rc=new THREE.Raycaster(); const out=[]; for(const y of [-.3,-.5,-.7,-.9]){ rc.setFromCamera(new THREE.Vector2(0,y),raceCam); const h=rc.intersectObjects(R.scene.children,true).slice(0,3).map(h=>[h.object.type,h.object.material&&h.object.material.map?h.object.material.map.image.width+'x'+h.object.material.map.image.height:'',h.distance.toFixed(1),h.point.y.toFixed(2)]); out.push(h);} return out; }, top(h,dx=0,dz=0){ paused=true; const g=R.me.built.group.position; raceCam.position.set(g.x+dx,g.y+h,g.z+dz+1); raceCam.lookAt(g.x+dx,g.y,g.z+dz); }, podium(t){ for(let i=0;i<t*30;i++) updatePodium(1/30); renderer.render(P.scene,P.cam); }, startRace, raceCam, buildGarageUI, refreshGarageCar, get R() { return R; }, sel, input };
