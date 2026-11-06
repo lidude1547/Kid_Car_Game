@@ -180,6 +180,11 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjus
 #loading .box{max-width:320px}
 .spin{width:64px;height:64px;margin:0 auto 12px;border-radius:50%;border:8px solid rgba(255,255,255,.15);border-top-color:var(--yellow);animation:sp 1s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
+.talk{pointer-events:auto;touch-action:none;margin-top:6px;background:linear-gradient(180deg,#a855f7,#7c3aed);color:#fff;font-weight:900;font-size:15px;border-radius:16px;padding:10px 12px;border:2px solid rgba(255,255,255,.5);box-shadow:0 4px 0 rgba(0,0,0,.35)}
+.talk.on,.talk2.on{background:linear-gradient(180deg,#ff5a52,#c1121f)!important;transform:scale(1.05)}
+.talk2{background:linear-gradient(180deg,#a855f7,#7c3aed);color:#fff;margin-top:10px;touch-action:none}
+#voiceInd{position:fixed;left:50%;top:calc(116px + env(safe-area-inset-top));transform:translateX(-50%);z-index:56;display:none;background:rgba(124,58,237,.92);color:#fff;font-weight:900;border-radius:999px;padding:6px 16px;font-size:15px;pointer-events:none;white-space:nowrap}
+#voiceInd.on{display:block}
 #fsHint{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:55;display:none;background:rgba(255,212,0,.92);color:#111;font-weight:900;border-radius:999px;padding:8px 18px;font-size:15px;pointer-events:none;box-shadow:0 6px 16px rgba(0,0,0,.4);animation:fsPulse 1.6s ease-in-out infinite}
 @keyframes fsPulse{50%{transform:translateX(-50%) scale(1.06)}}
 #fsHint.on{display:block}
@@ -282,6 +287,7 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjus
 <div id="hud" class="screen">
   <div class="tl">
     <div class="hbox"><div id="hPos">第 9 名</div><div id="hLap">第 1 / 1 圈</div></div>
+    <button class="talk" id="bTalk" hidden>🎤 麥克風：關</button>
   </div>
   <div class="tc2 hbox"><div id="hTime" class="num">0:00.0</div><div id="hTarget">目標 1:00</div></div>
   <div id="prog"><div class="pline"></div><span class="pflag">🏁</span><div id="pmarks"></div></div>
@@ -377,6 +383,7 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjus
     <button class="btn go wide" id="netReady">🏁 開始比賽</button>
     <div class="nhint" id="netWait">人到齊、而且每個人都按「開始比賽」顯示 READY，比賽就會開始</div>
   </div>
+  <button class="btn wide talk2" id="netTalk" hidden>🎤 麥克風：關（點一下打開，跟朋友聊天）</button>
   <div class="nmsg" id="netMsg"></div>
   <div class="nbtns">
     <button class="btn" id="netHide">⬇ 收起（房間保留）</button>
@@ -384,6 +391,11 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjus
     <button class="btn wide" id="netClose">⬅ 返回</button>
   </div>
 </div></div>
+<div id="voiceInd"></div>
+<div id="iosGuide" class="ov"><div class="box"><div class="big">📲</div><h2>iPhone 全螢幕玩法</h2>
+  <div class="info" style="text-align:left">iPhone 的 Safari 不讓網頁隱藏網址列，只要做一次這個設定，之後就是完整全螢幕：<br><br>
+  ① 在 <b>Safari</b> 打開這個遊戲<br>② 點畫面下方（或上方）的 <b>分享 ⬆️</b><br>③ 往下滑，點 <b>「加入主畫面」</b> → 右上角 <b>「加入」</b><br>④ 回到手機主畫面，點 <b>「小小賽車手」</b> 圖示開始玩</div>
+  <div class="btns"><button class="btn go" id="iosOk">知道了</button></div></div></div>
 <div id="fsHint">👆 點一下畫面就會全螢幕</div>
 <div id="rot"><div class="phone">📱</div><h2>請把手機橫過來</h2><p>橫著拿才能開賽車喔！轉過來就會繼續。</p><button class="btn" id="rotHome" style="margin-top:14px">🏠 回主頁</button></div>
 <div id="crash" class="ov"><div class="box"><div class="big">🛠️</div><h2>畫面出了點問題</h2><div class="info">可以回到主頁重新開始，或重新載入遊戲。</div>
@@ -1569,7 +1581,7 @@ function startRace(ti, net = null) {
     placeCars(0); snapCamera();
     $('#hTarget').textContent = '目標 ' + fmt(R.target, false);
     $('#hTarget').style.color = 'var(--go)';
-    updateCtrlVisibility(); $('#bPause').style.display = R.net ? 'none' : '';
+    updateCtrlVisibility(); $('#bPause').style.display = R.net ? 'none' : ''; $('#bTalk').hidden = !R.net;
     showOv('loading', false); showOv('result', false); showOv('pause', false); paused = false;
     show('hud'); mode = 'race';
     lightsDom(0); $('#lights').style.display = 'flex';
@@ -2058,6 +2070,8 @@ $('#gNext').onclick = () => { Audio.beep(700, .08); toMenu('tracks'); };
 $('#tBack').onclick = () => show('garage');
 $('#bPause').onclick = () => setPause(true);
 $('#bHome').onclick = () => goHome();
+$('#iosOk').onclick = () => showOv('iosGuide', false);
+talkButton($('#bTalk')); talkButton($('#netTalk'));
 $('#bFull').onclick = () => enterFull(true);
 $('#fullTip').onclick = () => enterFull(true);
 const fsUI = () => { const on = !!fsEl(); $('#bFull').style.display = on ? 'none' : ''; $('#fullTip').hidden = on || standaloneApp; };
@@ -2097,7 +2111,11 @@ function armAutoFull() {
   // browsers only allow full screen from a tap: the first tap anywhere while sideways turns it on
   const tap = () => { if (landscapeNow() && !fsEl() && fsOK()) enterFull(false); };
   document.addEventListener('pointerdown', tap, true);
-  const hint = () => { const h = $('#fsHint'); if (!h) return; h.classList.toggle('on', isTouch && landscapeNow() && !fsEl() && fsOK() && window.top === window); };
+  const hint = () => {
+    const h = $('#fsHint'); if (!h) return; h.classList.toggle('on', isTouch && landscapeNow() && !fsEl() && fsOK() && window.top === window);
+    // iPhone Safari cannot hide its address bar: guide once towards "Add to Home Screen"
+    if (isIOS && !fsOK() && !standaloneApp && landscapeNow() && window.top === window && !store.get('iosGuided', false)) { store.set('iosGuided', true); showOv('iosGuide', true); }
+  };
   addEventListener('resize', hint); document.addEventListener('fullscreenchange', hint); document.addEventListener('webkitfullscreenchange', hint); setTimeout(hint, 500);
 }
 const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
@@ -2106,7 +2124,7 @@ function lockLandscape() { try { const o = screen.orientation; if (o && o.lock) 
 let fsPending = 0;
 function enterFull(explain) {
   if (fsEl() || performance.now() - fsPending < 1200) return;
-  if (!fsOK()) { if (explain) { $('#installHelp').hidden = false; show('home'); } return; }
+  if (!fsOK()) { if (explain) showOv('iosGuide', true); return; }
   const el = document.documentElement; fsPending = performance.now();
   try {
     const p = el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' }) : el.webkitRequestFullscreen ? el.webkitRequestFullscreen() : null;
@@ -2147,6 +2165,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyC') camMode = (camMode + 1) % 3;
   if (e.code === 'KeyP' || e.code === 'Escape') setPause(!paused);
   if (e.code === 'KeyH') goHome();
+  if (e.code === 'KeyV' && NET.code && !e.repeat) Voice.toggle();
 });
 addEventListener('keyup', e => { if (KEYS[e.code]) input[KEYS[e.code]] = 0; });
 addEventListener('contextmenu', e => e.preventDefault());
@@ -2225,7 +2244,75 @@ function cleanSpec(sp) {
 }
 const cleanName = n => ([...String(n || '').replace(/[<>&"'`]/g, '').trim()].slice(0, 12).join('') || '玩家');
 function netMsg(t) { $('#netMsg').textContent = t || ''; }
+/* ---------- walkie-talkie voice chat: mic -> 8 kHz mu-law chunks every ~200 ms over the same relay ---------- */
+function muEnc(v) { let x = Math.max(-1, Math.min(1, v)) * 32635; const sign = x < 0 ? 0x80 : 0; if (sign) x = -x; x += 0x84; let exp = 7; for (let m = 0x4000; (x & m) === 0 && exp > 0; m >>= 1) exp--; const man = (x >> (exp + 3)) & 0x0f; return ~(sign | (exp << 4) | man) & 0xff; }
+function muDec(u) { u = ~u & 0xff; const sign = u & 0x80, exp = (u >> 4) & 7, man = u & 0x0f; let x = ((man << 3) + 0x84) << exp; x -= 0x84; return (sign ? -x : x) / 32768; }
+const Voice = {
+  stream: null, src: null, proc: null, sink: null, talking: false, buf: [], acc: 0, cnt: 0, ratio: 6, peers: {}, out: null, indT: null, duckT: null,
+  async start() {
+    if (!NET.mq || !NET.code) return; Audio.init(); const ctx = Audio.ctx; if (!ctx) return;
+    try { if (ctx.resume) await ctx.resume(); } catch (e) { }
+    if (!this.stream) {
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
+      } catch (e) { voiceInd('🎤 沒辦法用麥克風，請在瀏覽器允許麥克風', 2500); return; }
+      this.src = ctx.createMediaStreamSource(this.stream); this.proc = ctx.createScriptProcessor(2048, 1, 1);
+      this.sink = ctx.createGain(); this.sink.gain.value = 0;
+      this.src.connect(this.proc); this.proc.connect(this.sink); this.sink.connect(ctx.destination);
+      this.ratio = ctx.sampleRate / 8000; this.proc.onaudioprocess = e => this.onAudio(e);
+    }
+    this.talking = true; this.buf = []; this.acc = 0; this.cnt = 0; this.loudT = 0; this.ui(); voiceInd('🎤 麥克風打開了，直接說話就好', 1800);
+  },
+  stop() {
+    if (!this.talking) return; this.talking = false; this.buf = []; this.ui(); voiceInd('🔇 麥克風關了', 1200);
+    if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; } try { if (this.src) this.src.disconnect(); if (this.proc) this.proc.disconnect(); } catch (e) { } this.src = this.proc = null;
+  },
+  toggle() { if (this.talking) this.stop(); else this.start(); },
+  ui() {
+    const on = this.talking;
+    $('#bTalk').classList.toggle('on', on); $('#bTalk').textContent = on ? '🔴 麥克風：開' : '🎤 麥克風：關';
+    $('#netTalk').classList.toggle('on', on); $('#netTalk').textContent = on ? '🔴 麥克風：開（點一下關掉）' : '🎤 麥克風：關（點一下打開，跟朋友聊天）';
+  },
+  release() { this.stop(); if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; } try { if (this.src) this.src.disconnect(); if (this.proc) this.proc.disconnect(); } catch (e) { } this.src = this.proc = null; },
+  onAudio(e) {
+    if (!this.talking) return; const d = e.inputBuffer.getChannelData(0);
+    let e2 = 0; for (let i = 0; i < d.length; i++) e2 += d[i] * d[i];
+    if (Math.sqrt(e2 / d.length) > .012) this.loudT = performance.now();   // someone is speaking
+    for (let i = 0; i < d.length; i++) { this.acc += d[i]; this.cnt++; if (this.cnt >= this.ratio) { this.buf.push(muEnc(this.acc / this.cnt * 1.6)); this.acc = 0; this.cnt -= this.ratio; } }
+    if (this.buf.length >= 1600) this.flush();
+  },
+  flush() {
+    if (!this.buf.length || !NET.mq || !NET.code || performance.now() - this.loudT > 600) { this.buf = []; return; }
+    let str = ''; for (const b of this.buf) str += String.fromCharCode(b); this.buf = [];
+    try { NET.mq.publish(TOP(NET.code) + '/v', JSON.stringify({ from: NET.myId, n: NET.name, d: btoa(str) }), { qos: 0 }); } catch (e) { }
+  },
+  recv(buf) {
+    let m; try { m = JSON.parse(buf.toString()); } catch (e) { return; }
+    if (!m || m.from === NET.myId || typeof m.d !== 'string' || m.d.length > 30000) return;
+    const ctx = Audio.ctx; if (!ctx) return;
+    let raw; try { raw = atob(m.d); } catch (e) { return; }
+    const n = raw.length, up = 3, ab = ctx.createBuffer(1, n * up, 24000), ch = ab.getChannelData(0);   // 8 kHz -> 24 kHz for every browser
+    let prev = 0; for (let i = 0; i < n; i++) { const v = muDec(raw.charCodeAt(i)); for (let k = 0; k < up; k++) ch[i * up + k] = prev + (v - prev) * (k + 1) / up; prev = v; }
+    if (!this.out) { this.out = ctx.createGain(); this.out.gain.value = 1.5; this.out.connect(ctx.destination); }
+    const p = this.peers[m.from] || (this.peers[m.from] = { t: 0 });
+    const now = ctx.currentTime; if (p.t < now + .05) p.t = now + .15;
+    const src = ctx.createBufferSource(); src.buffer = ab; src.connect(this.out); src.start(p.t); p.t += ab.duration;
+    voiceInd('🗣️ ' + cleanName(m.n) + ' 說話中…', 700);
+    if (Audio.master) { Audio.master.gain.value = Audio.on ? .15 : 0; clearTimeout(this.duckT); this.duckT = setTimeout(() => { if (Audio.master) Audio.master.gain.value = Audio.on ? .5 : 0; }, 800); }
+  },
+};
+function voiceInd(text, ms) {
+  const el = $('#voiceInd'); clearTimeout(Voice.indT);
+  if (!text) { el.classList.remove('on'); return; }
+  el.textContent = text; el.classList.add('on');
+  if (ms) Voice.indT = setTimeout(() => { if (!Voice.talking) el.classList.remove('on'); }, ms);
+}
+function talkButton(el) {
+  el.addEventListener('click', e => { e.preventDefault(); Voice.toggle(); });
+  el.addEventListener('pointerdown', e => e.stopPropagation());
+}
 function netReset() {
+  Voice.release();
   clearInterval(NET.hb); NET.hb = null; if (NET.countT) { clearTimeout(NET.countT); NET.countT = null; } NET.countAt = 0;
   try {
     if (NET.mq) {
@@ -2239,6 +2326,7 @@ function netReset() {
 function netBroadcast(m) { if (!NET.mq || !NET.code) return; try { NET.mq.publish(TOP(NET.code) + '/a', JSON.stringify(m), { qos: m.t === 'w' || m.t === 'hb' ? 0 : 1 }); } catch (e) { } }
 function lobbyUI() {
   const inRoom = !!NET.role && !!NET.code;
+  $('#netTalk').hidden = !inRoom;
   $('#netHome').hidden = inRoom; $('#netLobby').hidden = !inRoom;
   $('#netHide').hidden = $('#netLeave').hidden = !inRoom; $('#netClose').hidden = inRoom;
   document.querySelectorAll('#netSize button').forEach(b => b.classList.toggle('sel', +b.dataset.n === NET.size));
@@ -2300,8 +2388,8 @@ async function netHost() {
   if (!code) { try { client.end(true); } catch (e) { } return netMsg('開房間失敗，請再試一次'); }
   NET.mq = client; NET.role = 'host'; NET.code = code; NET.myId = 'host'; NET.seen = new Map(); NET.lastHb = Date.now(); NET.pw = String(Math.floor(1000 + Math.random() * 9000)); NET.pwShown = false;
   NET.track = sel.track; NET.players = [{ id: 'host', name: NET.name, spec: mySpec(), ready: false }];
-  client.on('message', (t, buf) => { if (t !== TOP(code) + '/h') return; let d; try { d = JSON.parse(buf.toString()); } catch (e) { return; } hostRecv(d); });
-  client.subscribe(TOP(code) + '/h', { qos: 1 });
+  client.on('message', (t, buf) => { if (t === TOP(code) + '/v') return Voice.recv(buf); if (t !== TOP(code) + '/h') return; let d; try { d = JSON.parse(buf.toString()); } catch (e) { return; } hostRecv(d); });
+  client.subscribe(TOP(code) + '/h', { qos: 1 }); client.subscribe(TOP(code) + '/v', { qos: 0 });
   const mark = () => { if (NET.mq === client && NET.role === 'host') client.publish(TOP(code) + '/room', JSON.stringify({ ts: Date.now(), size: NET.size, n: NET.players.length, racing: !!(R && R.net && mode === 'race'), host: NET.name, room: NET.roomName }), { qos: 1, retain: true }); };
   NET.mark = mark;
   mark(); client.on('connect', () => { mark(); hostLobby(); });
@@ -2387,10 +2475,10 @@ async function netJoin(codeArg, pwArg) {
   if (!found) { browseStart(); return netMsg('找不到房間 ' + code + '。請確認房號，並請房主先開好房間、遊戲畫面保持開著'); }
   NET.mq = found; NET.myId = gid; NET.role = 'guest'; NET.code = code; NET.players = []; NET.lastHost = Date.now();
   found.on('message', (t, buf) => {
-    if (t !== TOP(code) + '/a' || NET.mq !== found) return; let d; try { d = JSON.parse(buf.toString()); } catch (e) { return; }
+    if (NET.mq !== found) return; if (t === TOP(code) + '/v') return Voice.recv(buf); if (t !== TOP(code) + '/a') return; let d; try { d = JSON.parse(buf.toString()); } catch (e) { return; }
     if (d.to && d.to !== NET.myId) return; NET.lastHost = Date.now(); guestRecv(d);
   });
-  found.subscribe(TOP(code) + '/a', { qos: 1 });
+  found.subscribe(TOP(code) + '/a', { qos: 1 }); found.subscribe(TOP(code) + '/v', { qos: 0 });
   const hello = () => sendHost({ t: 'hello', name: NET.name, spec: mySpec(), pw });
   hello(); found.on('connect', () => { if (NET.mq === found) hello(); });
   NET.hb = setInterval(() => {
