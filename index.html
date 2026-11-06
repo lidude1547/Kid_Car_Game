@@ -43,7 +43,7 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjus
   filter:drop-shadow(0 6px 0 rgba(0,0,0,.35))}
 #home h1 span{font-family:"Baloo 2";color:#ff3b30;-webkit-text-fill-color:#ff3b30}
 
-.itip{margin:-8px 0 14px;background:rgba(255,212,0,.16);border:1px solid rgba(255,212,0,.6);border-radius:999px;padding:8px 16px;font-weight:700;font-size:14px;touch-action:manipulation}
+.itip{margin:-8px 4px 14px;background:rgba(255,212,0,.16);border:1px solid rgba(255,212,0,.6);border-radius:999px;padding:8px 16px;font-weight:700;font-size:14px;touch-action:manipulation}
 .ihelp{max-width:420px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:-6px 0 14px;font-size:14px;line-height:1.6;color:var(--ink)}
 #home p{margin:10px 0 22px;color:var(--muted);font-size:clamp(14px,2.6vw,18px);text-align:center}
 .bigplay{width:clamp(130px,26vw,190px);height:clamp(130px,26vw,190px);border-radius:50%;
@@ -146,7 +146,7 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjus
 #joy.on #joyKnob{transition:none}
 #bGas{right:calc(14px + env(safe-area-inset-right));width:var(--gw);height:var(--gh);background:linear-gradient(180deg,#34d368,#15803d);font-size:clamp(18px,5vmin,28px);white-space:nowrap}
 #bBrake{right:calc(var(--gw) + 26px + env(safe-area-inset-right));width:var(--bb);height:var(--bb);background:linear-gradient(180deg,#ff5a52,#c1121f);font-size:clamp(14px,4vmin,22px);white-space:nowrap}
-#bHorn{right:calc(14px + env(safe-area-inset-right));bottom:calc(var(--gh) + 30px + env(safe-area-inset-bottom));width:var(--hb);height:var(--hb);background:rgba(255,212,0,.85);font-size:28px;border-radius:50%}
+#bHorn{right:calc(var(--gw) + 26px + (var(--bb) - var(--hb)) / 2 + env(safe-area-inset-right));bottom:calc(var(--bb) + 30px + env(safe-area-inset-bottom));width:var(--hb);height:var(--hb);background:rgba(255,212,0,.85);font-size:28px;border-radius:50%}
 #hint{position:absolute;left:50%;bottom:calc(clamp(150px,26vw,220px)*.62 + 22px);transform:translateX(-50%);font-size:12px;color:var(--muted);white-space:nowrap}
 #lights{position:absolute;left:50%;top:22%;transform:translateX(-50%);display:none;gap:clamp(8px,2vw,16px);background:#111;padding:12px 16px;border-radius:18px;border:3px solid #333;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 #lights i{width:clamp(34px,7vw,58px);height:clamp(34px,7vw,58px);border-radius:50%;background:#3a0b0b;box-shadow:inset 0 -6px 10px rgba(0,0,0,.5)}
@@ -237,6 +237,7 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjus
 <div id="home" class="screen on">
   <h1>小小賽車手 <span>3D</span></h1>
   <p>選一台車，跑遍世界 24 條 F1 賽道！</p>
+  <button class="itip" id="fullTip">⛶ 全螢幕玩</button>
   <button class="itip" id="installTip" hidden></button>
   <div class="ihelp" id="installHelp" hidden>iPhone / iPad：用 <b>Safari</b> 打開這個網址 → 點下方的 <b>分享 ⬆️</b> → 選 <b>「加入主畫面」</b>。之後從主畫面的「小小賽車手」圖示打開，就是沒有網址列的全螢幕。</div>
   <button class="bigplay" id="btnPlay" aria-label="開始">▶</button>
@@ -288,6 +289,7 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjus
       <button class="ib" id="bCam" aria-label="換視角">🎥</button>
       <button class="ib" id="bSnd" aria-label="聲音">🔊</button>
       <button class="ib" id="bHome" aria-label="回主頁">🏠</button>
+      <button class="ib" id="bFull" aria-label="全螢幕">⛶</button>
     </div>
   </div>
   <div id="speedo">
@@ -1573,7 +1575,6 @@ function startRace(ti, net = null) {
 function updateCtrlVisibility() {
   $('#bGas').style.display = sel.gas === 'auto' ? 'none' : '';
   $('#bBrake').style.right = sel.gas === 'auto' ? 'calc(14px + env(safe-area-inset-right))' : '';
-  $('#bHorn').style.bottom = sel.gas === 'auto' ? 'calc(var(--bb) + 30px + env(safe-area-inset-bottom))' : '';
   $('#hint').textContent = isTouch ? '' : '⌨️ ←→ 轉彎　↑ 油門　↓ 煞車　空白鍵 喇叭　C 換視角　P 暫停　H 回主頁';
 }
 function lightsDom(n) { document.querySelectorAll('#lights i').forEach((e, i) => e.classList.toggle('on', i < n)); }
@@ -2040,6 +2041,11 @@ $('#gNext').onclick = () => { Audio.beep(700, .08); toMenu('tracks'); };
 $('#tBack').onclick = () => show('garage');
 $('#bPause').onclick = () => setPause(true);
 $('#bHome').onclick = () => goHome();
+$('#bFull').onclick = () => enterFull(true);
+$('#fullTip').onclick = () => enterFull(true);
+const fsUI = () => { const on = !!fsEl(); $('#bFull').style.display = on ? 'none' : ''; $('#fullTip').hidden = on || standaloneApp; };
+document.addEventListener('fullscreenchange', () => { fsUI(); setTimeout(resize, 120); });
+document.addEventListener('webkitfullscreenchange', () => { fsUI(); setTimeout(resize, 120); });
 $('#tHome').onclick = () => goHome();
 $('#cHome').onclick = () => goHome();
 $('#cReload').onclick = () => location.reload();
@@ -2069,22 +2075,25 @@ function goHome() {
   show('home'); resize();
 }
 function setPause(p) { if (mode !== 'race' || (R && (R.phase === 'done' || R.net))) return; paused = p; showOv('pause', p); if (Audio.ctx) Audio.engine(0, 1, false); }
-function goFull() {
-  if (!isTouch) return;
-  const lock = () => { try { const o = screen.orientation; if (o && o.lock) o.lock('landscape').catch(() => { }); } catch (e) { } };
+const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+const fsOK = () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+function lockLandscape() { try { const o = screen.orientation; if (o && o.lock) o.lock('landscape').catch(() => { }); } catch (e) { } }
+function enterFull(explain) {
+  if (fsEl()) return;
+  if (!fsOK()) { if (explain) { $('#installHelp').hidden = false; show('home'); } return; }
+  const el = document.documentElement;
   try {
-    const el = document.documentElement;
-    if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen({ navigationUI: 'hide' }).then(lock).catch(lock);
-    else if (!document.fullscreenElement && el.webkitRequestFullscreen) { el.webkitRequestFullscreen(); lock(); }
-    else lock();
-  } catch (e) { lock(); }
+    const p = el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' }) : el.webkitRequestFullscreen ? el.webkitRequestFullscreen() : null;
+    if (p && p.then) p.then(lockLandscape).catch(() => { }); else lockLandscape();
+  } catch (e) { }
 }
+function goFull() { if (isTouch) enterFull(false); }
 
 // touch controls
 function hold(id, key) {
   const el = $(id);
   const ids = new Set();
-  const on = e => { e.preventDefault(); ids.add(e.pointerId); try { el.setPointerCapture(e.pointerId); } catch (er) { } input[key] = 1; el.classList.add('on'); Audio.init(); if (key === 'horn') Audio.horn(); };
+  const on = e => { e.preventDefault(); ids.add(e.pointerId); try { el.setPointerCapture(e.pointerId); } catch (er) { } input[key] = 1; el.classList.add('on'); Audio.init(); goFull(); if (key === 'horn') Audio.horn(); };
   const off = e => { ids.delete(e.pointerId); if (ids.size) return; input[key] = 0; el.classList.remove('on'); };
   // pointer capture keeps the button pressed even if the thumb slides off it; only lifting the finger releases it
   el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('lostpointercapture', off);
@@ -2098,7 +2107,7 @@ function hold(id, key) {
     knob.style.transform = `translate(${dx}px,${dy}px)`; input.jx = dx / max; input.jy = -dy / max;
   };
   const end = e => { if (e.pointerId !== id) return; id = null; el.classList.remove('on'); knob.style.transform = ''; input.jx = input.jy = 0; };
-  el.addEventListener('pointerdown', e => { e.preventDefault(); id = e.pointerId; try { el.setPointerCapture(id); } catch (er) { } el.classList.add('on'); Audio.init(); set(e); });
+  el.addEventListener('pointerdown', e => { e.preventDefault(); id = e.pointerId; try { el.setPointerCapture(id); } catch (er) { } el.classList.add('on'); Audio.init(); goFull(); set(e); });
   el.addEventListener('pointermove', e => { if (e.pointerId === id) set(e); });
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); el.addEventListener('lostpointercapture', end);
 })();
@@ -2517,6 +2526,7 @@ if (window.visualViewport) visualViewport.addEventListener('resize', () => { if 
 addEventListener('orientationchange', () => setTimeout(() => { resetZoom(); resize(); }, 250));
 // ---- full screen: leave in-app browsers, offer "add to home screen" ----
 const UA = navigator.userAgent, isIOS = /iPhone|iPad|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const standaloneApp = window.matchMedia('(display-mode: fullscreen)').matches || window.matchMedia('(display-mode: standalone)').matches || !!navigator.standalone;
 const standalone = window.matchMedia('(display-mode: fullscreen)').matches || window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 try {
   if (/\bLine\//i.test(UA) && !/openExternalBrowser=1/.test(location.search) && window.top === window) {
@@ -2529,7 +2539,8 @@ $('#installTip').onclick = async () => {
   if (installEvt) { installEvt.prompt(); try { await installEvt.userChoice; } catch (e) { } installEvt = null; $('#installTip').hidden = true; return; }
   $('#installHelp').hidden = !$('#installHelp').hidden;
 };
-if (isIOS && !standalone && window.top === window) { $('#installTip').hidden = false; $('#installTip').innerHTML = '📲 想要<b>全螢幕</b>玩？點這裡看怎麼做'; }
+if (isIOS && !standalone && !fsOK() && window.top === window) { $('#installTip').hidden = false; $('#installTip').innerHTML = '📲 iPhone 全螢幕：點這裡看怎麼做'; }
+fsUI(); if (window.top !== window) { $('#fullTip').hidden = true; $('#bFull').style.display = 'none'; }
 if ('serviceWorker' in navigator && location.protocol === 'https:' && window.top === window) navigator.serviceWorker.register('sw.js').catch(() => { });
 requestAnimationFrame(frame);
 window.__game = { sim(sec, bot){ for(let i=0;i<sec*30;i++){ if(bot){ const me=R.me, td=R.td, L=td.L, i0=Math.floor((((me.s%L)+L)%L)/td.ds)%td.N, j=(i0+Math.round(me.v*.25/td.ds))%td.N; const ym=Math.min(me.v/6, A_LAT/Math.max(me.v,1))||1; const pt=clamp(.04*me.d,-.3,.3); const st=clamp((-R.prof.ks[j]*me.v)/ym + (me.psi-pt)*2.5,-1,1); input.right=st>0?st:0; input.left=st<0?-st:0; const vt=R.prof.v[i0]; input.gas=me.v<vt*.99?1:0; input.brake=me.v>vt*1.04?1:0; } updateRace(1/30);} renderer.render(R.scene, raceCam); }, hideMap(w,h){ R.scene.traverse(o=>{ if(o.material&&o.material.map&&o.material.map.image&&o.material.map.image.width===w&&o.material.map.image.height===h) o.visible=false; }); }, probe(){ updateCamera(1,true); const rc=new THREE.Raycaster(); const out=[]; for(const y of [-.3,-.5,-.7,-.9]){ rc.setFromCamera(new THREE.Vector2(0,y),raceCam); const h=rc.intersectObjects(R.scene.children,true).slice(0,3).map(h=>[h.object.type,h.object.material&&h.object.material.map?h.object.material.map.image.width+'x'+h.object.material.map.image.height:'',h.distance.toFixed(1),h.point.y.toFixed(2)]); out.push(h);} return out; }, top(h,dx=0,dz=0){ paused=true; const g=R.me.built.group.position; raceCam.position.set(g.x+dx,g.y+h,g.z+dz+1); raceCam.lookAt(g.x+dx,g.y,g.z+dz); }, podium(t){ for(let i=0;i<t*30;i++) updatePodium(1/30); renderer.render(P.scene,P.cam); }, startRace, raceCam, buildGarageUI, refreshGarageCar, get R() { return R; }, sel, input };
