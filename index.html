@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="小小賽車手">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0b0f17">
 <title>小小賽車手 3D</title>
@@ -24,7 +28,9 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overflow:hi
   touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block}
 #fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:40}
-button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:manipulation}
+button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:pan-y}
+#hud,#hud *{touch-action:none}
+html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 .screen{position:fixed;inset:0;display:none;z-index:10}
 .screen.on{display:flex}
 .num{font-family:"Baloo 2","Noto Sans TC",sans-serif}
@@ -36,6 +42,9 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
   background:linear-gradient(180deg,#fff 0%,#ffe36e 55%,#ff9a1f 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
   filter:drop-shadow(0 6px 0 rgba(0,0,0,.35))}
 #home h1 span{font-family:"Baloo 2";color:#ff3b30;-webkit-text-fill-color:#ff3b30}
+
+.itip{margin:-8px 0 14px;background:rgba(255,212,0,.16);border:1px solid rgba(255,212,0,.6);border-radius:999px;padding:8px 16px;font-weight:700;font-size:14px;touch-action:manipulation}
+.ihelp{max-width:420px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:-6px 0 14px;font-size:14px;line-height:1.6;color:var(--ink)}
 #home p{margin:10px 0 22px;color:var(--muted);font-size:clamp(14px,2.6vw,18px);text-align:center}
 .bigplay{width:clamp(130px,26vw,190px);height:clamp(130px,26vw,190px);border-radius:50%;
   background:radial-gradient(circle at 35% 30%,#5cff8f,#16a34a 60%,#0b6b2f);box-shadow:0 10px 0 #075224,0 18px 40px rgba(34,197,94,.45);
@@ -228,6 +237,8 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
 <div id="home" class="screen on">
   <h1>小小賽車手 <span>3D</span></h1>
   <p>選一台車，跑遍世界 24 條 F1 賽道！</p>
+  <button class="itip" id="installTip" hidden></button>
+  <div class="ihelp" id="installHelp" hidden>iPhone / iPad：用 <b>Safari</b> 打開這個網址 → 點下方的 <b>分享 ⬆️</b> → 選 <b>「加入主畫面」</b>。之後從主畫面的「小小賽車手」圖示打開，就是沒有網址列的全螢幕。</div>
   <button class="bigplay" id="btnPlay" aria-label="開始">▶</button>
 </div>
 
@@ -2072,9 +2083,11 @@ function goFull() {
 // touch controls
 function hold(id, key) {
   const el = $(id);
-  const on = e => { e.preventDefault(); input[key] = 1; el.classList.add('on'); Audio.init(); if (key === 'horn') Audio.horn(); };
-  const off = e => { input[key] = 0; el.classList.remove('on'); };
-  el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointerleave', off); el.addEventListener('pointercancel', off);
+  const ids = new Set();
+  const on = e => { e.preventDefault(); ids.add(e.pointerId); try { el.setPointerCapture(e.pointerId); } catch (er) { } input[key] = 1; el.classList.add('on'); Audio.init(); if (key === 'horn') Audio.horn(); };
+  const off = e => { ids.delete(e.pointerId); if (ids.size) return; input[key] = 0; el.classList.remove('on'); };
+  // pointer capture keeps the button pressed even if the thumb slides off it; only lifting the finger releases it
+  el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('lostpointercapture', off);
 }
 (function joystick() {
   const el = $('#joy'), knob = $('#joyKnob'); let id = null;
@@ -2422,11 +2435,11 @@ $('#netRooms').addEventListener('click', e => {
 });
 $('#netPwGo').onclick = () => netJoin(NET.pickCode, $('#netPwIn').value);
 $('#netPwIn').addEventListener('keydown', e => { if (e.key === 'Enter') netJoin(NET.pickCode, $('#netPwIn').value); });
-$('#netPwCancel').onclick = () => { $('#netPwBox').hidden = true; };
+$('#netPwCancel').onclick = () => { $('#netPwBox').hidden = true; $('.ncodebox').hidden = false; };
 addEventListener('pagehide', () => { try { if (NET.role === 'host' && NET.mq) { NET.mq.publish(TOP(NET.code) + '/room', '', { qos: 1, retain: true }); netBroadcast({ t: 'closed' }); } else if (NET.role === 'guest') sendHost({ t: 'bye' }); } catch (e) { } });
 $('#netPwEye').onclick = () => { NET.pwShown = !NET.pwShown; lobbyUI(); };
 $('#netInvite').onclick = async () => {
-  const url = location.origin + location.pathname + '?room=' + NET.code;
+  const url = location.origin + location.pathname + '?room=' + NET.code + '&openExternalBrowser=1';
   try { await navigator.clipboard.writeText('一起來玩小小賽車手！房間「' + NET.roomName + '」 ' + url + '（密碼另外告訴你）'); netMsg('已複製邀請連結（不含密碼），密碼請你另外告訴朋友'); }
   catch (e) { netMsg('邀請連結：' + url); }
 };
@@ -2482,10 +2495,42 @@ makeTextures(); buildGarageUI(); buildOpts(); refreshGarageCar(); resize();
 try {
   const inv = new URLSearchParams(location.search).get('room');
   if (/^\d{4}$/.test(inv || '') && window.top === window) {
-    show('tracks'); buildTrackGrid(); openNet(); $('#netCode').value = inv;
-    netMsg('朋友邀請你加入房間 ' + inv + '！輸入名字和房主給你的密碼，再按「加入」'); $('#netName').focus();
+    // invite link: the room code is already known, the friend only types the password
+    show('tracks'); buildTrackGrid(); openNet(); $('#netCode').value = inv; NET.pickCode = inv;
+    $('#netPwTitle').textContent = '🎉 朋友邀請你一起玩！只要輸入房主告訴你的密碼'; $('#netPwIn').value = ''; $('#netPwBox').hidden = false;
+    $('.ncodebox').hidden = true; netMsg('');
+    setTimeout(() => $('#netPwIn').focus(), 300);
   }
 } catch (e) { }
+// ---- stop the browser from zooming the game (two thumbs on the screen look like a pinch) ----
+['gesturestart', 'gesturechange', 'gestureend'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
+document.addEventListener('touchmove', e => { if (e.touches.length > 1 || (mode === 'race' && !e.target.closest('.box'))) e.preventDefault(); }, { passive: false });
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => { const now = Date.now(); if (now - lastTouchEnd < 320 && !e.target.closest('input,select')) e.preventDefault(); lastTouchEnd = now; }, { passive: false });
+function resetZoom() {
+  const m = document.querySelector('meta[name=viewport]'); if (!m) return;
+  const c = 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
+  m.setAttribute('content', c + ',minimum-scale=1'); setTimeout(() => { m.setAttribute('content', c); resize(); }, 60);
+}
+if (window.visualViewport) visualViewport.addEventListener('resize', () => { if (visualViewport.scale > 1.02) resetZoom(); resize(); });
+addEventListener('orientationchange', () => setTimeout(() => { resetZoom(); resize(); }, 250));
+// ---- full screen: leave in-app browsers, offer "add to home screen" ----
+const UA = navigator.userAgent, isIOS = /iPhone|iPad|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const standalone = window.matchMedia('(display-mode: fullscreen)').matches || window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+try {
+  if (/\bLine\//i.test(UA) && !/openExternalBrowser=1/.test(location.search) && window.top === window) {
+    const u = new URL(location.href); u.searchParams.set('openExternalBrowser', '1'); location.replace(u.toString());
+  }
+} catch (e) { }
+let installEvt = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('#installTip').hidden = false; $('#installTip').innerHTML = '📲 <b>安裝到主畫面</b>，全螢幕玩、沒有網址列'; });
+$('#installTip').onclick = async () => {
+  if (installEvt) { installEvt.prompt(); try { await installEvt.userChoice; } catch (e) { } installEvt = null; $('#installTip').hidden = true; return; }
+  $('#installHelp').hidden = !$('#installHelp').hidden;
+};
+if (isIOS && !standalone && window.top === window) { $('#installTip').hidden = false; $('#installTip').innerHTML = '📲 想要<b>全螢幕</b>玩？點這裡看怎麼做'; }
+if ('serviceWorker' in navigator && location.protocol === 'https:' && window.top === window) navigator.serviceWorker.register('sw.js').catch(() => { });
 requestAnimationFrame(frame);
 window.__game = { sim(sec, bot){ for(let i=0;i<sec*30;i++){ if(bot){ const me=R.me, td=R.td, L=td.L, i0=Math.floor((((me.s%L)+L)%L)/td.ds)%td.N, j=(i0+Math.round(me.v*.25/td.ds))%td.N; const ym=Math.min(me.v/6, A_LAT/Math.max(me.v,1))||1; const pt=clamp(.04*me.d,-.3,.3); const st=clamp((-R.prof.ks[j]*me.v)/ym + (me.psi-pt)*2.5,-1,1); input.right=st>0?st:0; input.left=st<0?-st:0; const vt=R.prof.v[i0]; input.gas=me.v<vt*.99?1:0; input.brake=me.v>vt*1.04?1:0; } updateRace(1/30);} renderer.render(R.scene, raceCam); }, hideMap(w,h){ R.scene.traverse(o=>{ if(o.material&&o.material.map&&o.material.map.image&&o.material.map.image.width===w&&o.material.map.image.height===h) o.visible=false; }); }, probe(){ updateCamera(1,true); const rc=new THREE.Raycaster(); const out=[]; for(const y of [-.3,-.5,-.7,-.9]){ rc.setFromCamera(new THREE.Vector2(0,y),raceCam); const h=rc.intersectObjects(R.scene.children,true).slice(0,3).map(h=>[h.object.type,h.object.material&&h.object.material.map?h.object.material.map.image.width+'x'+h.object.material.map.image.height:'',h.distance.toFixed(1),h.point.y.toFixed(2)]); out.push(h);} return out; }, top(h,dx=0,dz=0){ paused=true; const g=R.me.built.group.position; raceCam.position.set(g.x+dx,g.y+h,g.z+dz+1); raceCam.lookAt(g.x+dx,g.y,g.z+dz); }, podium(t){ for(let i=0;i<t*30;i++) updatePodium(1/30); renderer.render(P.scene,P.cam); }, startRace, raceCam, buildGarageUI, refreshGarageCar, get R() { return R; }, sel, input };
 </script>
