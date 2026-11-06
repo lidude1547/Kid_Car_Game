@@ -144,6 +144,17 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjus
 .ja-l{left:9%;top:50%;transform:translateY(-50%)}.ja-r{right:9%;top:50%;transform:translateY(-50%)}.ja-u{top:7%;left:50%;transform:translateX(-50%)}.ja-d{bottom:7%;left:50%;transform:translateX(-50%)}
 #joyKnob{position:absolute;left:50%;top:50%;width:44%;height:44%;margin:-22% 0 0 -22%;border-radius:50%;background:radial-gradient(circle at 35% 30%,#7fb2ff,#2f6fe0 60%,#1d4fae);border:3px solid #fff;box-shadow:0 6px 12px rgba(0,0,0,.45);pointer-events:none;transition:transform .08s}
 #joy.on #joyKnob{transition:none}
+#bNos{--nos:clamp(50px,13vmin,64px);right:calc(14px + (var(--gw) - var(--nos)) / 2 + env(safe-area-inset-right));bottom:calc(var(--gh) + 26px + env(safe-area-inset-bottom));width:var(--nos);height:var(--nos);border-radius:50%;padding:0;
+  background:conic-gradient(#38bdf8 calc(var(--chg,0) * 1turn),rgba(255,255,255,.18) 0);border:3px solid rgba(255,255,255,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;box-shadow:0 4px 0 rgba(0,0,0,.35)}
+#bNos::before{content:'';position:absolute;inset:5px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#3b4a66,#141b2b);z-index:-1}
+#bNos{isolation:isolate}
+#bNos .nl1{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:calc(var(--nos) * .26);color:#7dd3fc;letter-spacing:.5px}
+#bNos .nl2{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:calc(var(--nos) * .3);color:#fff}
+#bNos.ready{box-shadow:0 0 16px #38bdf8,0 4px 0 rgba(0,0,0,.35);border-color:#7dd3fc}
+#bNos.ready::before{background:radial-gradient(circle at 40% 30%,#1d6fd6,#0b2a6b)}
+#bNos.fire{animation:nosPulse .25s ease-in-out infinite;border-color:#fff}
+#bNos.fire::before{background:radial-gradient(circle at 40% 30%,#60a5fa,#7c3aed)}
+@keyframes nosPulse{50%{transform:scale(1.12)}}
 #bGas{right:calc(14px + env(safe-area-inset-right));width:var(--gw);height:var(--gh);background:linear-gradient(180deg,#34d368,#15803d);font-size:clamp(18px,5vmin,28px);white-space:nowrap}
 #bBrake{right:calc(var(--gw) + 26px + env(safe-area-inset-right));width:var(--bb);height:var(--bb);background:linear-gradient(180deg,#ff5a52,#c1121f);font-size:clamp(14px,4vmin,22px);white-space:nowrap}
 #bHorn{right:calc(var(--gw) + 26px + (var(--bb) - var(--hb)) / 2 + env(safe-area-inset-right));bottom:calc(var(--bb) + 30px + env(safe-area-inset-bottom));width:var(--hb);height:var(--hb);background:rgba(255,212,0,.85);font-size:28px;border-radius:50%}
@@ -154,6 +165,8 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjus
 #turn{position:absolute;left:50%;top:17%;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;gap:2px;pointer-events:none}
 #turnAr{font-size:clamp(46px,12vmin,90px);line-height:1;color:#ffd400;text-shadow:0 4px 0 rgba(0,0,0,.4),0 0 24px rgba(255,212,0,.6);font-weight:900}
 #turnTx{font-size:clamp(18px,5vmin,30px);font-weight:900;color:#fff;background:#e11d1d;border-radius:12px;padding:2px 12px;display:none}
+#nosTxt{position:absolute;left:50%;bottom:calc(clamp(130px,30vmin,220px) * .62 + 20px + env(safe-area-inset-bottom));transform:translateX(-50%);font-family:'Baloo 2',sans-serif;font-weight:800;font-size:clamp(20px,5vmin,30px);color:#e0f2ff;text-shadow:0 0 12px #3b82f6,0 0 24px #7c3aed;opacity:0;transition:opacity .15s;pointer-events:none;white-space:nowrap}
+#nosTxt.on{opacity:1}
 #banner{position:absolute;left:0;right:0;top:36%;text-align:center;font-size:clamp(44px,11vw,110px);font-weight:900;color:#fff;
   text-shadow:0 6px 0 rgba(0,0,0,.35),0 0 40px rgba(255,212,0,.6);opacity:0;transform:scale(.6);transition:all .35s cubic-bezier(.2,1.6,.4,1)}
 #banner.show{opacity:1;transform:scale(1)}
@@ -314,10 +327,12 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjus
     <div id="joy" aria-label="方向搖桿"><i class="ja ja-l">◀</i><i class="ja ja-r">▶</i><i class="ja ja-u">▲</i><i class="ja ja-d">▼</i><div id="joyKnob"></div></div>
     <button class="cb" id="bBrake">煞車</button>
     <button class="cb" id="bGas">油門</button>
+    <button class="cb" id="bNos" aria-label="NOS 增壓"><span class="nl1">NOS</span><span class="nl2" id="nosCount">0</span></button>
     <button class="cb" id="bHorn" aria-label="喇叭">📯</button>
   </div>
   <div id="lights"><i></i><i></i><i></i><i></i><i></i></div>
   <div id="banner"></div>
+  <div id="nosTxt">🔥 NOS</div>
   <div id="turn"><span id="turnAr"></span><b id="turnTx"></b></div>
 </div>
 
@@ -1571,8 +1586,15 @@ function startRace(ti, net = null) {
     });
     $('#pmarks').innerHTML = R.cars.map((c, i) => c.ai ? `<i class="pm" data-i="${i}"></i>` : `<i class="pm h ${c.me ? 'me' : ''}" data-i="${i}" style="background:${c.spec[1]}">${c.me ? '你' : [...c.name][0]}</i>`).join('');
     R.pm = [...document.querySelectorAll('#pmarks .pm')];
-    R.me = R.cars.find(c => c.me); R.laps = laps; R.target = targetFor(ti, laps, vmaxK, R.grip); R.prof = speedProfile(td, vmax, R.grip); R.shake = 0; R.camDir = new THREE.Vector3();
-    R.vmax = vmax; R.t = 0; R.phase = 'lights'; R.phaseT = 0; R.lightsOn = 0; R.goAt = net ? 5.0 : 4.4 + rnd(.3, .9); R.finishT = 0; R.lastLap = 1; R.bumpT = 0;
+    R.me = R.cars.find(c => c.me);
+    { // blue NOS flame behind the player's car (hidden until boosting)
+      const fl = new THREE.Group(), b = R.me.built, sc = 1 / b.scale;
+      const outer = new THREE.Mesh(new THREE.ConeGeometry(.22, 1.6, 16, 1, true).rotateX(-PI / 2).translate(0, 0, -.8), new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: .75, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      const inner = new THREE.Mesh(new THREE.ConeGeometry(.11, 1.0, 12, 1, true).rotateX(-PI / 2).translate(0, 0, -.5), new THREE.MeshBasicMaterial({ color: 0xe0f2ff, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      fl.add(outer, inner); fl.position.set(0, (b.len < 4 ? .25 : .35) * sc, -(b.len / 2 + .05) * sc); fl.scale.multiplyScalar(sc); fl.visible = false;
+      b.group.add(fl); R.flame = fl;
+    } R.laps = laps; R.target = targetFor(ti, laps, vmaxK, R.grip); R.prof = speedProfile(td, vmax, R.grip); R.shake = 0; R.camDir = new THREE.Vector3();
+    R.vmax = vmax; R.nos = 0; R.nosChg = 0; R.nosT = 0; R.t = 0; R.phase = 'lights'; R.phaseT = 0; R.lightsOn = 0; R.goAt = net ? 5.0 : 4.4 + rnd(.3, .9); R.finishT = 0; R.lastLap = 1; R.bumpT = 0;
     renderer.toneMappingExposure = R.expo;
     // minimap path
     const bbx = td.bb, sz = Math.max(bbx.x1 - bbx.x0, bbx.z1 - bbx.z0), sc = 250 / sz;
@@ -1591,7 +1613,7 @@ function startRace(ti, net = null) {
 function updateCtrlVisibility() {
   $('#bGas').style.display = sel.gas === 'auto' ? 'none' : '';
   $('#bBrake').style.right = sel.gas === 'auto' ? 'calc(14px + env(safe-area-inset-right))' : '';
-  $('#hint').textContent = isTouch ? '' : '⌨️ ←→ 轉彎　↑ 油門　↓ 煞車　空白鍵 喇叭　C 換視角　P 暫停　H 回主頁';
+  $('#hint').textContent = isTouch ? '' : '⌨️ ←→ 轉彎　↑ 油門　↓ 煞車　N 氮氣　空白鍵 喇叭　C 換視角　P 暫停　H 回主頁';
 }
 function lightsDom(n) { document.querySelectorAll('#lights i').forEach((e, i) => e.classList.toggle('on', i < n)); }
 let bannerTO;
@@ -1636,7 +1658,7 @@ function updateCamera(dt, snap) {
   R.shake = Math.max(0, R.shake - dt * 2); const shake = (vr > .6 ? (vr - .6) * .05 : 0) + R.shake * .5;
   _look.x += rnd(-shake, shake); _look.y += rnd(-shake, shake);
   raceCam.lookAt(_look);
-  const fov = (camMode === 2 ? 72 : 60) + vr * 16;
+  const fov = (camMode === 2 ? 72 : 60) + Math.min(vr, 1) * 16 + (R.nosT > 0 ? 10 : 0);
   if (Math.abs(raceCam.fov - fov) > .05) { raceCam.fov = lerp(raceCam.fov, fov, snap ? 1 : .08); raceCam.updateProjectionMatrix(); }
   // shadow follows player
   R.sun.position.copy(g.position).addScaledVector(R.lightDir, 120); R.sun.target.position.copy(g.position); R.sun.target.updateMatrixWorld();
@@ -1674,11 +1696,19 @@ function updateRace(dt) {
   const iMe = Math.floor((((me.s % L) + L) % L) / td.ds) % td.N;
   if (R.phase === 'race') {
     const gas = input.gas || input.jy > .35;
+    // NOS: 300+ km/h for 3 s in a row earns one charge (max 3); one tap = 1.5 s of 400 km/h boost
+    const NOS_V = 400 / 3.6;
+    if (R.nosT > 0) R.nosT = Math.max(0, R.nosT - dt);
+    if (me.v * 3.6 > 300 && R.nosT <= 0) { R.nosChg += dt; if (R.nosChg >= 3) { R.nosChg = 0; if (R.nos < 3) { R.nos++; Audio.tone(988, .12, 'triangle', .25); setTimeout(() => Audio.tone(1319, .16, 'triangle', .25), 110); } } }
+    else if (me.v * 3.6 <= 300) R.nosChg = 0;
+    const boosting = R.nosT > 0;
     let a = gas ? accelAt(me.v, R.vmax) : -2 - .0018 * me.v * me.v;
-    if (input.brake || input.jy < -.45) a = -32;
+    if (boosting) a = me.v < NOS_V ? 60 : 0;
+    else if (me.v > R.vmax) a = Math.min(a, -14);                 // after NOS: ease back down to the normal top speed
+    if (!boosting && (input.brake || input.jy < -.45)) a = -32;   // NOS runs its full 1.5 s on its own, then control returns to the pedals
     const offroad = Math.abs(me.d) > R.HW + 1.4;
-    if (offroad && me.v > 20) a = Math.min(a, -16);
-    me.v = clamp(me.v + a * dt, 0, R.vmax);
+    if (offroad && me.v > 20 && !boosting) a = Math.min(a, -16);
+    me.v = clamp(me.v + a * dt, 0, boosting ? NOS_V : Math.max(R.vmax, me.v));
     {
       // free steering: the car keeps its own heading, the track bends underneath it
       const st = steerInput();
@@ -1748,7 +1778,11 @@ function updateRace(dt) {
   // HUD
   const kmh = Math.round(me.v * 3.6);
   $('#spd').textContent = kmh;
-  $('#spArc').setAttribute('stroke-dasharray', (kmh / 350 * 100).toFixed(1) + ' 100');
+  $('#spArc').setAttribute('stroke-dasharray', Math.min(100, kmh / 350 * 100).toFixed(1) + ' 100');
+  $('#spd').style.color = R.nosT > 0 || kmh > 352 ? '#7dd3fc' : '';
+  const nb = $('#bNos'); nb.style.setProperty('--chg', (R.nos >= 3 ? 1 : R.nosChg / 3).toFixed(3)); $('#nosCount').textContent = R.nos;
+  nb.classList.toggle('ready', R.nos > 0 && R.nosT <= 0); nb.classList.toggle('fire', R.nosT > 0); $('#nosTxt').classList.toggle('on', R.nosT > 0);
+  if (R.flame) { R.flame.visible = R.nosT > 0; if (R.flame.visible) { const f = .8 + Math.random() * .5; R.flame.scale.set(1, 1, f); } }
   const pos = R.phase === 'done' ? R.finalPos : 1 + R.cars.filter(c => !c.me && c.s > me.s).length;
   $('#hPos').textContent = (pos === 1 ? '🥇 ' : pos === 2 ? '🥈 ' : pos === 3 ? '🥉 ' : '') + '第 ' + pos + ' 名';
   $('#hLap').textContent = '第 ' + clamp(Math.floor(Math.max(0, me.s) / L) + 1, 1, R.laps) + ' / ' + R.laps + ' 圈';
@@ -2155,6 +2189,12 @@ function hold(id, key) {
   el.addEventListener('pointermove', e => { if (e.pointerId === id) set(e); });
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); el.addEventListener('lostpointercapture', end);
 })();
+function fireNos() {
+  if (mode !== 'race' || !R || R.phase !== 'race' || R.nos <= 0 || R.nosT > 0) { if (R && R.nos <= 0 && mode === 'race') Audio.tone(220, .1, 'square', .12); return; }
+  R.nos--; R.nosT = 1.5; R.shake = .6;
+  Audio.tone(180, .9, 'sawtooth', .22, 900); Audio.tone(90, .9, 'square', .12, 300);
+}
+$('#bNos').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); Audio.init(); goFull(); fireNos(); });
 hold('#bGas', 'gas'); hold('#bBrake', 'brake'); hold('#bHorn', 'horn');
 const KEYS = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'gas', KeyW: 'gas', ArrowDown: 'brake', KeyS: 'brake' };
 addEventListener('keydown', e => {
@@ -2162,6 +2202,7 @@ addEventListener('keydown', e => {
   if (KEYS[e.code]) { input[KEYS[e.code]] = 1; e.preventDefault(); }
   if (mode !== 'race') return;
   if (e.code === 'Space') { Audio.horn(); e.preventDefault(); }
+  if (e.code === 'KeyN' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') fireNos();
   if (e.code === 'KeyC') camMode = (camMode + 1) % 3;
   if (e.code === 'KeyP' || e.code === 'Escape') setPause(!paused);
   if (e.code === 'KeyH') goHome();
