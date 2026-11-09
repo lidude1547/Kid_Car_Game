@@ -392,7 +392,7 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjus
     <div id="netPlayers"></div>
     <div id="netHostCtl">
       <label class="nl">賽道（房主選）<select id="netTrack"></select></label>
-      <div class="nhint">圈數、時間、天氣、對手強度用房主在選賽道頁面的設定；空的位子由電腦補滿 9 台。</div>
+      <div class="nhint">圈數、時間、天氣、對手強度用房主在選賽道頁面的設定；每場都是 10 台車，空的位子由電腦補滿。</div>
     </div>
     <div class="ntrack" id="netTrackShow" hidden></div>
     <button class="btn go wide" id="netReady">🏁 開始比賽</button>
@@ -1368,7 +1368,7 @@ function buildRace(ti, env = {}) {
   placeAt(sl, td, 0, 0, ROAD_Y + .01); sl.receiveShadow = true; scene.add(sl);
   const white = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: .7, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
   const laneD = th.street ? 2.7 : 3.2;
-  for (let k = 0; k < 9; k++) {
+  for (let k = 0; k < 10; k++) {
     const s = -(14 + k * 9), d = k % 2 ? laneD : -laneD, idx = Math.round(s / td.ds);
     const m = new THREE.Mesh(new THREE.PlaneGeometry(2.6, .3).rotateX(-PI / 2), white); placeAt(m, td, idx - 1, d, ROAD_Y + .01); scene.add(m);
   }
@@ -1556,18 +1556,18 @@ function startRace(ti, net = null) {
     const laps = net ? net.laps : sel.laps, vmaxK = net ? net.vmax : sel.vmax, aiLvl = net ? net.ai : sel.ai;
     const vmax = vmaxK / 3.6;
     const humans = net ? net.players : [{ id: 'me', name: '你', spec: [sel.type, sel.color, sel.brand, 7, sel.make] }];
-    const nAI = 9 - humans.length;
+    const nAI = 10 - humans.length;   // always 10 cars: up to 4 players, computers fill the rest
     const aiColors = net ? COLORS.slice() : COLORS.filter(c => c !== sel.color).sort(() => Math.random() - .5);
     const aiBrands = net ? BRANDS.slice() : BRANDS.filter(b => b.id !== sel.brand).sort(() => Math.random() - .5);
     const aiType = net ? net.aiType : sel.type;
     R.cars = []; R.net = !!net;
-    for (let k = 0; k < 9; k++) {
+    for (let k = 0; k < 10; k++) {
       const h = k < nAI ? null : humans[k - nAI];
       const me = !!h && (net ? h.id === NET.myId : true);
-      const spec = h ? h.spec : [aiType, aiColors[(k * 5 + 1) % aiColors.length], aiBrands[k % aiBrands.length].id, [3, 11, 22, 33, 44, 55, 63, 81][k], MAKES[(k + 1) % MAKES.length].id];
+      const spec = h ? h.spec : [aiType, aiColors[(k * 5 + 1) % aiColors.length], aiBrands[k % aiBrands.length].id, [3, 11, 22, 33, 44, 55, 63, 81, 91][k], MAKES[(k + 1) % MAKES.length].id];
       const built = buildCar(...spec);
       const car = { me, ai: !h, remote: h && !me ? h.id : null, spec, name: me ? '你' : h ? h.name : (BRANDS.find(b => b.id === spec[2]).zh + ' ' + spec[3] + '號'), built, s: -(14 + k * 9), d: k % 2 ? R.laneD : -R.laneD, v: 0, lat: 0, targetD: k % 2 ? R.laneD : -R.laneD, steerVis: 0,
-        skill: ({ easy: [.89, .88, .87, .86, .85, .84, .83, .82], pro: [.98, .97, .96, .95, .945, .935, .925, .915], max: [1.0, .995, .99, .985, .98, .975, .97, .96] }[aiLvl] || [.95, .94, .93, .92, .91, .9, .89, .88])[k] || 1, laneT: rnd(3, 7), finished: false, psi: 0, steerSm: 0 };
+        skill: ({ easy: [.93, .92, .91, .9, .89, .88, .87, .86, .85], pro: [.98, .97, .96, .95, .945, .935, .925, .915, .905], max: [1.0, .995, .99, .985, .98, .975, .97, .965, .96] }[aiLvl] || [.95, .94, .93, .92, .91, .9, .89, .88, .87])[k] || 1, laneT: rnd(3, 7), finished: false, psi: 0, steerSm: 0, nos: 0, nosChg: 0, nosT: 0, nosThink: rnd(0, .5), nosUsed: 0 };
       car.targetD = car.d;
       R.scene.add(built.group); R.cars.push(car);
     }
@@ -1587,13 +1587,14 @@ function startRace(ti, net = null) {
     $('#pmarks').innerHTML = R.cars.map((c, i) => c.ai ? `<i class="pm" data-i="${i}"></i>` : `<i class="pm h ${c.me ? 'me' : ''}" data-i="${i}" style="background:${c.spec[1]}">${c.me ? '你' : [...c.name][0]}</i>`).join('');
     R.pm = [...document.querySelectorAll('#pmarks .pm')];
     R.me = R.cars.find(c => c.me);
-    { // blue NOS flame behind the player's car (hidden until boosting)
-      const fl = new THREE.Group(), b = R.me.built, sc = 1 / b.scale;
+    for (const car of R.cars) { // blue NOS flame behind every car (hidden until boosting)
+      const fl = new THREE.Group(), b = car.built, sc = 1 / b.scale;
       const outer = new THREE.Mesh(new THREE.ConeGeometry(.22, 1.6, 16, 1, true).rotateX(-PI / 2).translate(0, 0, -.8), new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: .75, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
       const inner = new THREE.Mesh(new THREE.ConeGeometry(.11, 1.0, 12, 1, true).rotateX(-PI / 2).translate(0, 0, -.5), new THREE.MeshBasicMaterial({ color: 0xe0f2ff, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
       fl.add(outer, inner); fl.position.set(0, (b.len < 4 ? .25 : .35) * sc, -(b.len / 2 + .05) * sc); fl.scale.multiplyScalar(sc); fl.visible = false;
-      b.group.add(fl); R.flame = fl;
-    } R.laps = laps; R.target = targetFor(ti, laps, vmaxK, R.grip); R.prof = speedProfile(td, vmax, R.grip); R.shake = 0; R.camDir = new THREE.Vector3();
+      b.group.add(fl); car.flame = fl;
+    }
+    R.aiLvl = aiLvl; R.laps = laps; R.target = targetFor(ti, laps, vmaxK, R.grip); R.prof = speedProfile(td, vmax, R.grip); R.shake = 0; R.camDir = new THREE.Vector3();
     R.vmax = vmax; R.nos = 0; R.nosChg = 0; R.nosT = 0; R.t = 0; R.phase = 'lights'; R.phaseT = 0; R.lightsOn = 0; R.goAt = net ? 5.0 : 4.4 + rnd(.3, .9); R.finishT = 0; R.lastLap = 1; R.bumpT = 0;
     renderer.toneMappingExposure = R.expo;
     // minimap path
@@ -1666,6 +1667,23 @@ function updateCamera(dt, snap) {
   if (R.precip) updatePrecip(dt);
 }
 
+// how the computer decides to fire NOS — smarter on harder levels
+function aiWantsNos(c, ci) {
+  const lvl = R.aiLvl || 'pro', td = R.td, N = td.N, L = td.L;
+  // how much clear (corner-free) road lies ahead
+  const need = lvl === 'easy' ? 90 : lvl === 'pro' ? 240 : 320;
+  let clear = 0; for (let k = 0; k < (need + 40) / td.ds; k += 2) { if (R.prof.v[(ci + k) % N] < R.vmax * .985) break; clear = k * td.ds; }
+  if (lvl === 'easy') return clear >= need * .4 && Math.random() < .3;     // beginner: fires early and often, sometimes into a corner
+  if (clear < need) return false;                                            // never waste NOS into a corner
+  let ahead = 1e9, behind = 1e9;
+  for (const o of R.cars) { if (o === c || o.gone) continue; const rel = angWrapS(o.s - c.s, L); if (rel > 0) ahead = Math.min(ahead, rel); else behind = Math.min(behind, -rel); }
+  const remain = R.laps * L - c.s;
+  if (c.nos >= 3) return true;                                               // full: use it rather than lose charging time
+  if (remain < (lvl === 'max' ? 2200 : 1500)) return true;                   // final push to the line
+  if (lvl === 'pro') return ahead < 90 || Math.random() < .06;
+  // max: attack the car ahead, defend from the car behind, keep one in reserve otherwise
+  return ahead < 120 || (behind < 35 && c.nos >= 2);
+}
 function updatePrecip(dt) {
   const P_ = R.precip, p = P_.pos; P_.o.position.copy(raceCam.position);
   if (P_.kind === 'rain') {
@@ -1742,9 +1760,19 @@ function updateRace(dt) {
     if (racing) {
       const ci = Math.floor((((c.s % L) + L) % L) / td.ds) % td.N;
       const gap = leadS - c.s; // stay close to the players
-      let vt = R.prof.v[ci] * c.skill * (1 + clamp(gap / 300, -.08, .12)) * (1 + .015 * Math.sin(R.t * .7 + c.skill * 40));
+      const rb = { easy: [-.12, .04], pro: [-.08, .08], max: [-.05, .12] }[R.aiLvl] || [-.08, .08];   // catch-up strength by level
+      let vt = R.prof.v[ci] * c.skill * (1 + clamp(gap / 300, rb[0], rb[1])) * (1 + .015 * Math.sin(R.t * .7 + c.skill * 40));
       vt = Math.min(vt, R.prof.vlim[ci], R.vmax);
-      c.v += clamp(vt - c.v, -BRAKE * 1.1 * dt, accelAt(c.v, R.vmax) * dt);
+      // NOS: same rules as the player (300+ km/h for 3 s = 1 charge, max 3; 1.5 s at 400 km/h)
+      if (c.nosT > 0) c.nosT = Math.max(0, c.nosT - dt);
+      if (c.v * 3.6 > 300 && c.nosT <= 0) { c.nosChg += dt; if (c.nosChg >= 3) { c.nosChg = 0; if (c.nos < 3) c.nos++; } }
+      else if (c.v * 3.6 <= 300) c.nosChg = 0;
+      c.nosThink -= dt;
+      if (R.phase === 'race' && c.nos > 0 && c.nosT <= 0 && c.nosThink <= 0) { c.nosThink = .25; if (aiWantsNos(c, ci)) { c.nos--; c.nosT = 1.5; c.nosUsed++; } }
+      const NOS_V = 400 / 3.6;
+      if (c.nosT > 0) vt = Math.min(NOS_V, R.prof.vlim[ci] * 1.08);
+      const up = c.nosT > 0 ? 60 : accelAt(c.v, R.vmax), down = c.v > R.vmax && c.nosT <= 0 && vt >= R.vmax * .97 ? 14 : BRAKE * 1.1;
+      c.v += clamp(vt - c.v, -down * dt, up * dt);
       c.laneT -= dt; if (c.laneT < 0) { c.laneT = rnd(4, 9); c.targetD = rnd(-(R.HW - 2), R.HW - 2); }
       for (const o of R.cars) { if (o === c || o.me) continue; const rel = angWrapS(o.s - c.s, L); if (rel > 0 && rel < 14 && Math.abs(o.d - c.d) < 2.4) c.targetD = clamp(o.d + (o.d > 0 ? -3.6 : 3.6), -(R.HW - 1.4), R.HW - 1.4); }
       c.lat = clamp((c.targetD - c.d) * 1.5, -6, 6); c.d += c.lat * dt; c.s += c.v * dt;
@@ -1782,7 +1810,8 @@ function updateRace(dt) {
   $('#spd').style.color = R.nosT > 0 || kmh > 352 ? '#7dd3fc' : '';
   const nb = $('#bNos'); nb.style.setProperty('--chg', (R.nos >= 3 ? 1 : R.nosChg / 3).toFixed(3)); $('#nosCount').textContent = R.nos;
   nb.classList.toggle('ready', R.nos > 0 && R.nosT <= 0); nb.classList.toggle('fire', R.nosT > 0); $('#nosTxt').classList.toggle('on', R.nosT > 0);
-  if (R.flame) { R.flame.visible = R.nosT > 0; if (R.flame.visible) { const f = .8 + Math.random() * .5; R.flame.scale.set(1, 1, f); } }
+  me.nosT = R.nosT;
+  for (const c of R.cars) if (c.flame) { const on = c.me ? R.nosT > 0 : c.ai && !(R.net && NET.role === 'guest') ? c.nosT > 0 : !!(c.net && c.net.x[4]); c.flame.visible = on && !c.gone; if (on) c.flame.scale.z = (.8 + Math.random() * .5) * c.flame.scale.x; }
   const pos = R.phase === 'done' ? R.finalPos : 1 + R.cars.filter(c => !c.me && c.s > me.s).length;
   $('#hPos').textContent = (pos === 1 ? '🥇 ' : pos === 2 ? '🥈 ' : pos === 3 ? '🥉 ' : '') + '第 ' + pos + ' 名';
   $('#hLap').textContent = '第 ' + clamp(Math.floor(Math.max(0, me.s) / L) + 1, 1, R.laps) + ' / ' + R.laps + ' 圈';
@@ -2563,12 +2592,12 @@ function netStart() {
 const r2 = v => Math.round(v * 100) / 100;
 function netSend() {
   const me = R.me; if (!me) return;
-  const x = [r2(me.s), r2(me.d), r2(me.psi || 0), r2(me.v)];
+  const x = [r2(me.s), r2(me.d), r2(me.psi || 0), r2(me.v), R.nosT > 0 ? 1 : 0];
   if (NET.role === 'guest') sendHost({ t: 'st', x });
   else if (NET.role === 'host') {
     const p = { host: x };
     for (const c of R.cars) if (c.remote && c.net && !c.gone) p[c.remote] = c.net.x;
-    netBroadcast({ t: 'w', p, a: R.cars.filter(c => c.ai).map(c => [r2(c.s), r2(c.d), r2(c.v)]) });
+    netBroadcast({ t: 'w', p, a: R.cars.filter(c => c.ai).map(c => [r2(c.s), r2(c.d), r2(c.v), c.nosT > 0 ? 1 : 0]) });
   }
 }
 function applyState(id, x) {
@@ -2579,7 +2608,7 @@ function applyWorld(d) {
   if (!R || !R.net || !d.p) return;
   for (const id in d.p) if (id !== NET.myId) applyState(id, d.p[id]);
   const ais = R.cars.filter(c => c.ai);
-  (d.a || []).forEach((a, i) => { if (ais[i] && Array.isArray(a) && a.every(Number.isFinite)) ais[i].net = { x: [a[0], a[1], 0, a[2]], at: performance.now() }; });
+  (d.a || []).forEach((a, i) => { if (ais[i] && Array.isArray(a) && a.every(Number.isFinite)) ais[i].net = { x: [a[0], a[1], 0, a[2], a[3] || 0], at: performance.now() }; });
 }
 function netFollow(c, dt) {
   if (!c.net || c.gone) return;
@@ -2698,7 +2727,7 @@ if (isIOS && !standalone && !fsOK() && window.top === window) { $('#installTip')
 armAutoFull(); fsUI(); if (window.top !== window) { $('#fullTip').hidden = true; $('#bFull').style.display = 'none'; }
 if ('serviceWorker' in navigator && location.protocol === 'https:' && window.top === window) navigator.serviceWorker.register('sw.js').catch(() => { });
 requestAnimationFrame(frame);
-window.__game = { sim(sec, bot){ for(let i=0;i<sec*30;i++){ if(bot){ const me=R.me, td=R.td, L=td.L, i0=Math.floor((((me.s%L)+L)%L)/td.ds)%td.N, j=(i0+Math.round(me.v*.25/td.ds))%td.N; const ym=Math.min(me.v/6, A_LAT/Math.max(me.v,1))||1; const pt=clamp(.04*me.d,-.3,.3); const st=clamp((-R.prof.ks[j]*me.v)/ym + (me.psi-pt)*2.5,-1,1); input.right=st>0?st:0; input.left=st<0?-st:0; const vt=R.prof.v[i0]; input.gas=me.v<vt*.99?1:0; input.brake=me.v>vt*1.04?1:0; } updateRace(1/30);} renderer.render(R.scene, raceCam); }, hideMap(w,h){ R.scene.traverse(o=>{ if(o.material&&o.material.map&&o.material.map.image&&o.material.map.image.width===w&&o.material.map.image.height===h) o.visible=false; }); }, probe(){ updateCamera(1,true); const rc=new THREE.Raycaster(); const out=[]; for(const y of [-.3,-.5,-.7,-.9]){ rc.setFromCamera(new THREE.Vector2(0,y),raceCam); const h=rc.intersectObjects(R.scene.children,true).slice(0,3).map(h=>[h.object.type,h.object.material&&h.object.material.map?h.object.material.map.image.width+'x'+h.object.material.map.image.height:'',h.distance.toFixed(1),h.point.y.toFixed(2)]); out.push(h);} return out; }, top(h,dx=0,dz=0){ paused=true; const g=R.me.built.group.position; raceCam.position.set(g.x+dx,g.y+h,g.z+dz+1); raceCam.lookAt(g.x+dx,g.y,g.z+dz); }, podium(t){ for(let i=0;i<t*30;i++) updatePodium(1/30); renderer.render(P.scene,P.cam); }, startRace, raceCam, buildGarageUI, refreshGarageCar, get R() { return R; }, sel, input };
+window.__game = { sim(sec, bot){ for(let i=0;i<sec*30;i++){ if(bot){ const me=R.me, td=R.td, L=td.L, i0=Math.floor((((me.s%L)+L)%L)/td.ds)%td.N, j=(i0+Math.round(me.v*.25/td.ds))%td.N; const ym=Math.min(me.v/6, A_LAT/Math.max(me.v,1))||1; const pt=clamp(.04*me.d,-.3,.3); const st=clamp((-R.prof.ks[j]*me.v)/ym + (me.psi-pt)*2.5,-1,1); input.right=st>0?st:0; input.left=st<0?-st:0; const vt=R.prof.v[i0]; input.gas=me.v<vt*.99?1:0; input.brake=me.v>vt*1.04?1:0; } updateRace(1/30);} renderer.render(R.scene, raceCam); }, hideMap(w,h){ R.scene.traverse(o=>{ if(o.material&&o.material.map&&o.material.map.image&&o.material.map.image.width===w&&o.material.map.image.height===h) o.visible=false; }); }, probe(){ updateCamera(1,true); const rc=new THREE.Raycaster(); const out=[]; for(const y of [-.3,-.5,-.7,-.9]){ rc.setFromCamera(new THREE.Vector2(0,y),raceCam); const h=rc.intersectObjects(R.scene.children,true).slice(0,3).map(h=>[h.object.type,h.object.material&&h.object.material.map?h.object.material.map.image.width+'x'+h.object.material.map.image.height:'',h.distance.toFixed(1),h.point.y.toFixed(2)]); out.push(h);} return out; }, top(h,dx=0,dz=0){ paused=true; const g=R.me.built.group.position; raceCam.position.set(g.x+dx,g.y+h,g.z+dz+1); raceCam.lookAt(g.x+dx,g.y,g.z+dz); }, podium(t){ for(let i=0;i<t*30;i++) updatePodium(1/30); renderer.render(P.scene,P.cam); }, startRace, raceCam, aiNos: () => R.cars.filter(c => c.ai).map(c => c.nosUsed + '/' + c.nos), buildGarageUI, refreshGarageCar, get R() { return R; }, sel, input };
 </script>
 </body>
 </html>
