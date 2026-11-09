@@ -324,7 +324,7 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjus
   </div>
   <div id="hint"></div>
   <div id="ctrl">
-    <div id="joy" aria-label="方向搖桿"><i class="ja ja-l">◀</i><i class="ja ja-r">▶</i><i class="ja ja-u">▲</i><i class="ja ja-d">▼</i><div id="joyKnob"></div></div>
+    <div id="joy" aria-label="方向搖桿"><i class="ja ja-l">◀</i><i class="ja ja-r">▶</i><div id="joyKnob"></div></div>
     <button class="cb" id="bBrake">煞車</button>
     <button class="cb" id="bGas">油門</button>
     <button class="cb" id="bNos" aria-label="NOS 增壓"><span class="nl1">NOS</span><span class="nl2" id="nosCount">0</span></button>
@@ -1545,6 +1545,12 @@ let camMode = store.get('cam', 0);
 const input = { left: 0, right: 0, gas: 0, brake: 0, tilt: 0, jx: 0, jy: 0 };
 let paused = false;
 
+const GREEK = ['宙斯', '赫拉', '波賽頓', '雅典娜', '阿波羅', '阿蒂蜜絲', '阿瑞斯', '阿芙蘿黛蒂', '赫密士', '赫菲斯托斯', '狄蜜特', '戴奧尼索斯', '哈迪斯', '海克力士', '珀爾修斯', '阿基里斯', '奧德修斯', '伊卡洛斯', '普羅米修斯', '妮姬', '伊莉絲', '赫利俄斯'];
+function greekNames(n, seed) {
+  let a = seed >>> 0; const rand = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const list = GREEK.slice(); for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+  return list.slice(0, n);
+}
 function startRace(ti, net = null) {
   sel.track = ti; store.set('track', ti);
   $('#lName').textContent = TRACKS[ti].zh + '・' + TRACKS[ti].ci;
@@ -1561,12 +1567,13 @@ function startRace(ti, net = null) {
     const aiBrands = net ? BRANDS.slice() : BRANDS.filter(b => b.id !== sel.brand).sort(() => Math.random() - .5);
     const aiType = net ? net.aiType : sel.type;
     R.cars = []; R.net = !!net;
+    const aiNames = greekNames(10, net ? ti * 7919 + 13 : (Math.random() * 1e9) | 0);   // same names for everyone online
     for (let k = 0; k < 10; k++) {
       const h = k < nAI ? null : humans[k - nAI];
       const me = !!h && (net ? h.id === NET.myId : true);
       const spec = h ? h.spec : [aiType, aiColors[(k * 5 + 1) % aiColors.length], aiBrands[k % aiBrands.length].id, [3, 11, 22, 33, 44, 55, 63, 81, 91][k], MAKES[(k + 1) % MAKES.length].id];
       const built = buildCar(...spec);
-      const car = { me, ai: !h, remote: h && !me ? h.id : null, spec, name: me ? '你' : h ? h.name : (BRANDS.find(b => b.id === spec[2]).zh + ' ' + spec[3] + '號'), built, s: -(14 + k * 9), d: k % 2 ? R.laneD : -R.laneD, v: 0, lat: 0, targetD: k % 2 ? R.laneD : -R.laneD, steerVis: 0,
+      const car = { me, ai: !h, remote: h && !me ? h.id : null, spec, name: me ? '你' : h ? h.name : aiNames[k], built, s: -(14 + k * 9), d: k % 2 ? R.laneD : -R.laneD, v: 0, lat: 0, targetD: k % 2 ? R.laneD : -R.laneD, steerVis: 0,
         skill: ({ easy: [.93, .92, .91, .9, .89, .88, .87, .86, .85], pro: [.98, .97, .96, .95, .945, .935, .925, .915, .905], max: [1.0, .995, .99, .985, .98, .975, .97, .965, .96] }[aiLvl] || [.95, .94, .93, .92, .91, .9, .89, .88, .87])[k] || 1, laneT: rnd(3, 7), finished: false, psi: 0, steerSm: 0, nos: 0, nosChg: 0, nosT: 0, nosThink: rnd(0, .5), nosUsed: 0 };
       car.targetD = car.d;
       R.scene.add(built.group); R.cars.push(car);
@@ -1602,6 +1609,9 @@ function startRace(ti, net = null) {
     R.mm = { sc, ox: 150 - (bbx.x0 + bbx.x1) / 2 * sc, oz: 150 - (bbx.z0 + bbx.z1) / 2 * sc, path: new Path2D() };
     td.pos.forEach((p, i) => { const x = R.mm.ox + p.x * sc, y = R.mm.oz + p.z * sc; i ? R.mm.path.lineTo(x, y) : R.mm.path.moveTo(x, y); }); R.mm.path.closePath();
     placeCars(0); snapCamera();
+    R.cars.forEach(c => { if (c.flame) c.flame.visible = true; });
+    try { renderer.compile(R.scene, raceCam); } catch (e) { }
+    R.cars.forEach(c => { if (c.flame) c.flame.visible = false; });
     $('#hTarget').textContent = '目標 ' + fmt(R.target, false);
     $('#hTarget').style.color = 'var(--go)';
     updateCtrlVisibility(); $('#bPause').style.display = R.net ? 'none' : ''; $('#bTalk').hidden = !R.net;
@@ -1713,7 +1723,7 @@ function updateRace(dt) {
   // player
   const iMe = Math.floor((((me.s % L) + L) % L) / td.ds) % td.N;
   if (R.phase === 'race') {
-    const gas = input.gas || input.jy > .35;
+    const gas = !!input.gas;                    // throttle only from the 油門 button / ↑ key
     // NOS: 300+ km/h for 3 s in a row earns one charge (max 3); one tap = 1.5 s of 400 km/h boost
     const NOS_V = 400 / 3.6;
     if (R.nosT > 0) R.nosT = Math.max(0, R.nosT - dt);
@@ -1723,7 +1733,7 @@ function updateRace(dt) {
     let a = gas ? accelAt(me.v, R.vmax) : -2 - .0018 * me.v * me.v;
     if (boosting) a = me.v < NOS_V ? 60 : 0;
     else if (me.v > R.vmax) a = Math.min(a, -14);                 // after NOS: ease back down to the normal top speed
-    if (!boosting && (input.brake || input.jy < -.45)) a = -32;   // NOS runs its full 1.5 s on its own, then control returns to the pedals
+    if (!boosting && input.brake) a = -32;      // brake only from the 煞車 button / ↓ key   // NOS runs its full 1.5 s on its own, then control returns to the pedals
     const offroad = Math.abs(me.d) > R.HW + 1.4;
     if (offroad && me.v > 20 && !boosting) a = Math.min(a, -16);
     me.v = clamp(me.v + a * dt, 0, boosting ? NOS_V : Math.max(R.vmax, me.v));
@@ -1784,11 +1794,12 @@ function updateRace(dt) {
     if (c.me) continue;
     const rel = angWrapS(c.s - me.s, L), dd = c.d - me.d, len = me.built.len;
     if (Math.abs(rel) < len && Math.abs(dd) < 1.95) {
-      const push = (1.95 - Math.abs(dd)) * .55, sg = dd === 0 ? 1 : Math.sign(dd);
-      me.d -= sg * push; c.d += sg * push; me.targetD = me.d;
-      if (rel > 0) { me.v = Math.min(me.v, c.v * .96); me.s = Math.min(me.s, me.s + rel - len + .1); }
-      else c.v = Math.min(c.v, me.v * .96);
-      if (R.bumpT < 0) { Audio.boing(); R.bumpT = .6; }
+      const push = (1.95 - Math.abs(dd)) * .8, sg = dd === 0 ? (me.d > 0 ? 1 : -1) : Math.sign(dd);
+      me.d -= sg * push * .6; c.d += sg * push; me.targetD = me.d;
+      if (R.bumpT < 0) {   // one small speed loss per bump, never a sudden stop
+        if (rel > 0) me.v = Math.max(Math.min(me.v, c.v), me.v * .9); else c.v = Math.max(Math.min(c.v, me.v), c.v * .9);
+        Audio.boing(); R.bumpT = .6;
+      }
     }
   }
   // laps / finish
@@ -2047,7 +2058,7 @@ const Audio = {
 };
 function say(text) {
   if (!Audio.on) return;
-  try { const u = new SpeechSynthesisUtterance(text); u.lang = 'zh-TW'; u.rate = 1.05; u.pitch = 1.25; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) { }
+  setTimeout(() => { try { const u = new SpeechSynthesisUtterance(text); u.lang = 'zh-TW'; u.rate = 1.05; u.pitch = 1.25; if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) { } }, 60);
 }
 
 /* =========================================================
